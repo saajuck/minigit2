@@ -6,9 +6,14 @@ import ConfirmCheckoutDialog from "./components/ConfirmCheckoutDialog";
 import DiffPanel from "./components/DiffPanel";
 import GraphView from "./components/GraphView";
 import RepoSwitcher from "./components/RepoSwitcher";
+import ResizableDivider from "./components/ResizableDivider";
 import StatusBar from "./components/StatusBar";
 
 const ACTIVE_REPO_KEY = "minigit2:activeRepoId";
+const DIFF_WIDTH_KEY = "minigit2:diffPaneWidth";
+const MIN_DIFF_WIDTH = 240;
+const MAX_DIFF_WIDTH = 800;
+const DEFAULT_DIFF_WIDTH = 420;
 
 export default function App() {
   const [repos, setRepos] = useState<RepoInfo[]>([]);
@@ -26,6 +31,18 @@ export default function App() {
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [pendingCheckoutRef, setPendingCheckoutRef] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [diffPaneWidth, setDiffPaneWidth] = useState<number>(() => {
+    const stored = Number(localStorage.getItem(DIFF_WIDTH_KEY));
+    return stored >= MIN_DIFF_WIDTH && stored <= MAX_DIFF_WIDTH ? stored : DEFAULT_DIFF_WIDTH;
+  });
+
+  useEffect(() => {
+    localStorage.setItem(DIFF_WIDTH_KEY, String(diffPaneWidth));
+  }, [diffPaneWidth]);
+
+  function handleDiffPaneResize(deltaX: number) {
+    setDiffPaneWidth((w) => Math.min(MAX_DIFF_WIDTH, Math.max(MIN_DIFF_WIDTH, w - deltaX)));
+  }
 
   const refreshRepos = useCallback(async () => {
     try {
@@ -190,6 +207,7 @@ export default function App() {
               <div className="graph-pane">
                 {graph ? (
                   <GraphView
+                    key={activeRepoId}
                     nodes={graph.nodes}
                     edges={graph.edges}
                     selectedHash={selectedHash}
@@ -201,8 +219,9 @@ export default function App() {
                   graphLoading && <p className="muted">Chargement du graphe…</p>
                 )}
               </div>
-              <div className="diff-pane">
-                <DiffPanel diff={diff} loading={diffLoading} error={diffError} />
+              <ResizableDivider onResize={handleDiffPaneResize} />
+              <div className="diff-pane" style={{ width: diffPaneWidth }}>
+                <DiffPanel repoId={activeRepoId} diff={diff} loading={diffLoading} error={diffError} />
               </div>
             </div>
           </>

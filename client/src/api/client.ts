@@ -1,6 +1,7 @@
 import type {
   CheckoutResponse,
   DiffResponse,
+  FilePatchResponse,
   FsListResponse,
   GraphResponse,
   RepoInfo,
@@ -46,6 +47,8 @@ export const api = {
   getGraph: (repoId: string) => request<GraphResponse>(`/repos/${repoId}/graph`),
   getDiff: (repoId: string, hash: string) =>
     request<DiffResponse>(`/repos/${repoId}/commits/${hash}/diff`),
+  getFilePatch: (repoId: string, hash: string, path: string) =>
+    request<FilePatchResponse>(`/repos/${repoId}/commits/${hash}/diff/file?path=${encodeURIComponent(path)}`),
   getStatus: (repoId: string) => request<StatusResponse>(`/repos/${repoId}/status`),
   checkout: (repoId: string, ref: string) =>
     request<CheckoutResponse>(`/repos/${repoId}/checkout`, {

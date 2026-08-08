@@ -116,6 +116,9 @@ body {
   align-items: flex-start;
   font-family: monospace;
   font-size: 0.85rem;
+  height: 70vh;
+  overflow-y: auto;
+  position: relative;
 }
 
 .graph-svg {
@@ -123,8 +126,15 @@ body {
 }
 
 .graph-rows {
-  display: flex;
-  flex-direction: column;
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.graph-row-positioner {
+  position: absolute;
+  left: 0;
+  right: 0;
 }
 
 .commit-row {
@@ -190,16 +200,27 @@ body {
 .graph-pane {
   flex: 1;
   min-width: 0;
-  overflow: auto;
 }
 
 .diff-pane {
-  width: 420px;
   flex-shrink: 0;
-  border-left: 1px solid rgba(128, 128, 128, 0.3);
   padding-left: 16px;
   max-height: 80vh;
   overflow: auto;
+}
+
+.resizable-divider {
+  width: 6px;
+  align-self: stretch;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: transparent;
+  border-left: 1px solid rgba(128, 128, 128, 0.3);
+}
+
+.resizable-divider:hover {
+  border-left-color: #4f8fea;
+  background: rgba(79, 143, 234, 0.15);
 }
 
 .diff-panel h2 {

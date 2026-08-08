@@ -1,35 +1,60 @@
 import { useState } from "react";
-import type { FileDiff as FileDiffType } from "@minigit2/shared";
+import type { FileDiffSummary } from "@minigit2/shared";
+import { api } from "../api/client";
 
 interface Props {
-  file: FileDiffType;
+  repoId: string;
+  hash: string;
+  file: FileDiffSummary;
 }
 
-const STATUS_LABEL: Record<FileDiffType["status"], string> = {
+const STATUS_LABEL: Record<FileDiffSummary["status"], string> = {
   added: "+",
   deleted: "−",
   modified: "M",
   renamed: "R",
 };
 
-export default function FileDiff({ file }: Props) {
+export default function FileDiff({ repoId, hash, file }: Props) {
   const [open, setOpen] = useState(false);
-  const lines = file.patch.split("\n");
+  const [patch, setPatch] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function toggle() {
+    const next = !open;
+    setOpen(next);
+    if (next && patch === null && !loading) {
+      setLoading(true);
+      setError(null);
+      api
+        .getFilePatch(repoId, hash, file.path)
+        .then((data) => setPatch(data.patch))
+        .catch((err) => setError((err as Error).message))
+        .finally(() => setLoading(false));
+    }
+  }
 
   return (
     <div className="file-diff">
-      <button type="button" className="file-diff-header" onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="file-diff-header" onClick={toggle}>
         <span className={`status status-${file.status}`}>{STATUS_LABEL[file.status]}</span>
         <span className="path">{file.path}</span>
       </button>
       {open && (
-        <pre className="patch">
-          {lines.map((line, i) => (
-            <div key={i} className={lineClass(line)}>
-              {line}
-            </div>
-          ))}
-        </pre>
+        <>
+          {loading && <p className="muted">Chargement…</p>}
+          {error && <p className="error">{error}</p>}
+          {patch !== null && (
+            <pre className="patch">
+              {patch.split("\n").map((line, i) => (
+                <div key={i} className={lineClass(line)}>
+                  {line}
+                </div>
+              ))}
+            </pre>
+          )}
+        </>
       )}
     </div>
   );
