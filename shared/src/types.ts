@@ -5,6 +5,17 @@ export interface RepoInfo {
   addedAt: string;
 }
 
+export interface FsDirectory {
+  name: string;
+  path: string;
+}
+
+export interface FsListResponse {
+  path: string;
+  parent: string | null;
+  directories: FsDirectory[];
+}
+
 export interface RefDecoration {
   type: "branch" | "remote" | "tag";
   name: string;

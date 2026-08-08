@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkoutRouter } from "./routes/checkout";
 import { diffRouter } from "./routes/diff";
+import { fsRouter } from "./routes/fs";
 import { graphRouter } from "./routes/graph";
 import { reposRouter } from "./routes/repos";
 import { statusRouter } from "./routes/status";
@@ -18,6 +19,7 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
 });
 
+app.use("/api/fs", fsRouter);
 app.use("/api/repos", reposRouter);
 app.use("/api/repos/:id/graph", graphRouter);
 app.use("/api/repos/:id/commits", diffRouter);

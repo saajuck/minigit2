@@ -75,6 +75,15 @@ body {
   box-sizing: border-box;
 }
 
+.add-repo-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.add-repo-actions button {
+  flex: 1;
+}
+
 .error {
   color: #b00020;
   font-size: 0.85rem;
@@ -313,4 +322,55 @@ body {
   border: none;
   border-radius: 4px;
   padding: 6px 12px;
+}
+
+.modal-actions .primary {
+  background: #4f8fea;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+}
+
+.modal-actions .primary:disabled {
+  opacity: 0.5;
+}
+
+.browser-modal {
+  width: 480px;
+  max-width: 90vw;
+}
+
+.browser-path {
+  font-family: monospace;
+  font-size: 0.85rem;
+  color: gray;
+  margin: 0 0 8px;
+  word-break: break-all;
+}
+
+.browser-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid rgba(128, 128, 128, 0.2);
+  border-radius: 4px;
+}
+
+.browser-list li button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+
+.browser-list li button:hover {
+  background: rgba(79, 143, 234, 0.12);
 }

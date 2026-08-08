@@ -14,7 +14,13 @@ export class RepoValidationError extends Error {
   }
 }
 
-/** Resolves rawPath to an absolute path and confirms it's a git work tree. Throws RepoValidationError otherwise. */
+/**
+ * Resolves rawPath to an absolute path and confirms it's inside a git work tree.
+ * Returns the work tree's root (not the raw input) so that picking any subdirectory
+ * of a repo — e.g. via the folder browser — normalizes to that repo's own path,
+ * rather than registering the subdirectory as if it were a separate repo.
+ * Throws RepoValidationError otherwise.
+ */
 export async function assertValidRepoPath(rawPath: string): Promise<string> {
   const absPath = path.resolve(rawPath);
   if (!existsSync(absPath)) {
@@ -28,9 +34,10 @@ export async function assertValidRepoPath(rawPath: string): Promise<string> {
     if (stdout.trim() !== "true") {
       throw new RepoValidationError("not_a_git_repo", `Path is not a git work tree: ${absPath}`);
     }
+    const toplevel = await runGit(absPath, ["rev-parse", "--show-toplevel"]);
+    return toplevel.stdout.trim();
   } catch (err) {
     if (err instanceof RepoValidationError) throw err;
     throw new RepoValidationError("not_a_git_repo", `Path is not a git repository: ${absPath}`);
   }
-  return absPath;
 }
