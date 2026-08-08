@@ -2,6 +2,7 @@ import express from "express";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { graphRouter } from "./routes/graph";
 import { reposRouter } from "./routes/repos";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -15,6 +16,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api/repos", reposRouter);
+app.use("/api/repos/:id/graph", graphRouter);
 
 const clientDist = path.resolve(__dirname, "../../client/dist");
 if (existsSync(clientDist)) {

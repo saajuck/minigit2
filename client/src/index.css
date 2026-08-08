@@ -83,3 +83,71 @@ body {
 .muted {
   color: gray;
 }
+
+.repo-path {
+  font-family: monospace;
+  color: gray;
+  margin: 0 0 12px;
+}
+
+.graph-view {
+  display: flex;
+  align-items: flex-start;
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+
+.graph-svg {
+  flex-shrink: 0;
+}
+
+.graph-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.commit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.08);
+}
+
+.commit-row .hash {
+  color: gray;
+}
+
+.commit-row .subject {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 32ch;
+}
+
+.commit-row .author,
+.commit-row .date {
+  color: gray;
+  font-size: 0.8em;
+}
+
+.ref-badge {
+  border-radius: 3px;
+  padding: 0 4px;
+  font-size: 0.8em;
+  background: rgba(79, 143, 234, 0.15);
+  color: #4f8fea;
+}
+
+.ref-badge.ref-tag {
+  background: rgba(230, 162, 60, 0.15);
+  color: #e6a23c;
+}
+
+.ref-badge.ref-remote {
+  background: rgba(128, 128, 128, 0.15);
+  color: gray;
+}
+
+.ref-badge.head {
+  font-weight: bold;
+}

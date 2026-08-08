@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import type { RepoInfo } from "@minigit2/shared";
+import type { GraphResponse, RepoInfo } from "@minigit2/shared";
 import { api } from "./api/client";
 import AddRepoForm from "./components/AddRepoForm";
+import GraphView from "./components/GraphView";
 import RepoSwitcher from "./components/RepoSwitcher";
 
 const ACTIVE_REPO_KEY = "minigit2:activeRepoId";
@@ -12,6 +13,8 @@ export default function App() {
     localStorage.getItem(ACTIVE_REPO_KEY),
   );
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [graph, setGraph] = useState<GraphResponse | null>(null);
+  const [graphError, setGraphError] = useState<string | null>(null);
 
   const refreshRepos = useCallback(async () => {
     try {
@@ -52,6 +55,26 @@ export default function App() {
 
   const activeRepo = repos.find((r) => r.id === activeRepoId) ?? null;
 
+  useEffect(() => {
+    if (!activeRepoId) {
+      setGraph(null);
+      return;
+    }
+    let cancelled = false;
+    setGraphError(null);
+    api
+      .getGraph(activeRepoId)
+      .then((data) => {
+        if (!cancelled) setGraph(data);
+      })
+      .catch((err) => {
+        if (!cancelled) setGraphError((err as Error).message);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeRepoId]);
+
   return (
     <div className="app">
       <aside className="sidebar">
@@ -67,7 +90,11 @@ export default function App() {
       </aside>
       <main className="content">
         {activeRepo ? (
-          <p>Repo actif : {activeRepo.path}</p>
+          <>
+            <p className="repo-path">{activeRepo.path}</p>
+            {graphError && <p className="error">{graphError}</p>}
+            {graph && <GraphView nodes={graph.nodes} edges={graph.edges} />}
+          </>
         ) : (
           <p className="muted">Sélectionne ou ajoute un repo pour commencer.</p>
         )}
