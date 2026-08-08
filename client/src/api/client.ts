@@ -1,4 +1,11 @@
-import type { CheckoutResponse, DiffResponse, GraphResponse, RepoInfo, StatusResponse } from "@minigit2/shared";
+import type {
+  CheckoutResponse,
+  DiffResponse,
+  FsListResponse,
+  GraphResponse,
+  RepoInfo,
+  StatusResponse,
+} from "@minigit2/shared";
 
 export class ApiRequestError extends Error {
   readonly code: string;
@@ -45,4 +52,6 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ ref }),
     }),
+  browseFs: (path?: string) =>
+    request<FsListResponse>(`/fs${path ? `?path=${encodeURIComponent(path)}` : ""}`),
 };
