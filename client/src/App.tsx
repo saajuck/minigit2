@@ -17,6 +17,7 @@ export default function App() {
   );
   const [loadError, setLoadError] = useState<string | null>(null);
   const [graph, setGraph] = useState<GraphResponse | null>(null);
+  const [graphLoading, setGraphLoading] = useState(false);
   const [graphError, setGraphError] = useState<string | null>(null);
   const [selectedHash, setSelectedHash] = useState<string | null>(null);
   const [diff, setDiff] = useState<DiffResponse | null>(null);
@@ -66,12 +67,15 @@ export default function App() {
   const activeRepo = repos.find((r) => r.id === activeRepoId) ?? null;
 
   const refreshGraph = useCallback(async (repoId: string) => {
+    setGraphLoading(true);
     try {
       const data = await api.getGraph(repoId);
       setGraph(data);
       setGraphError(null);
     } catch (err) {
       setGraphError((err as Error).message);
+    } finally {
+      setGraphLoading(false);
     }
   }, []);
 
@@ -164,13 +168,27 @@ export default function App() {
       <main className="content">
         {activeRepo ? (
           <>
-            <p className="repo-path">{activeRepo.path}</p>
+            <div className="content-header">
+              <p className="repo-path">{activeRepo.path}</p>
+              <button
+                type="button"
+                className="refresh-button"
+                onClick={() => {
+                  refreshGraph(activeRepoId!);
+                  refreshStatus(activeRepoId!);
+                }}
+                disabled={graphLoading}
+                title="Recharger le graphe et le statut (pas de rafraîchissement automatique)"
+              >
+                {graphLoading ? "Rafraîchissement…" : "Rafraîchir"}
+              </button>
+            </div>
             <StatusBar status={activeStatus} />
             {graphError && <p className="error">{graphError}</p>}
             {checkoutError && <p className="error">{checkoutError}</p>}
             <div className="workspace">
               <div className="graph-pane">
-                {graph && (
+                {graph ? (
                   <GraphView
                     nodes={graph.nodes}
                     edges={graph.edges}
@@ -179,6 +197,8 @@ export default function App() {
                     onCheckoutCommit={requestCheckout}
                     onCheckoutBranch={requestCheckout}
                   />
+                ) : (
+                  graphLoading && <p className="muted">Chargement du graphe…</p>
                 )}
               </div>
               <div className="diff-pane">

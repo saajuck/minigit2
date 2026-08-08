@@ -84,10 +84,22 @@ body {
   color: gray;
 }
 
+.content-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .repo-path {
   font-family: monospace;
   color: gray;
   margin: 0 0 12px;
+}
+
+.refresh-button {
+  flex-shrink: 0;
+  margin-bottom: 12px;
 }
 
 .graph-view {
