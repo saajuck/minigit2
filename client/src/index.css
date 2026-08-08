@@ -151,3 +151,99 @@ body {
 .ref-badge.head {
   font-weight: bold;
 }
+
+.commit-row {
+  cursor: pointer;
+}
+
+.commit-row.selected {
+  background: rgba(79, 143, 234, 0.15);
+}
+
+.workspace {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.graph-pane {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+}
+
+.diff-pane {
+  width: 420px;
+  flex-shrink: 0;
+  border-left: 1px solid rgba(128, 128, 128, 0.3);
+  padding-left: 16px;
+  max-height: 80vh;
+  overflow: auto;
+}
+
+.diff-panel h2 {
+  font-size: 0.95rem;
+  font-family: monospace;
+  margin-top: 0;
+}
+
+.file-diff-header {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+
+.status {
+  font-weight: bold;
+  width: 1em;
+  text-align: center;
+}
+
+.status-added {
+  color: #67c23a;
+}
+
+.status-deleted {
+  color: #f56c6c;
+}
+
+.status-modified {
+  color: #4f8fea;
+}
+
+.status-renamed {
+  color: #e6a23c;
+}
+
+.patch {
+  font-size: 0.78rem;
+  overflow-x: auto;
+  background: rgba(128, 128, 128, 0.05);
+  padding: 6px;
+  margin: 0 0 8px;
+}
+
+.diff-add {
+  color: #2f9e44;
+  background: rgba(47, 158, 68, 0.08);
+}
+
+.diff-del {
+  color: #c92a2a;
+  background: rgba(201, 42, 42, 0.08);
+}
+
+.diff-hunk {
+  color: #9b59b6;
+}
+
+.diff-file-header {
+  color: gray;
+}

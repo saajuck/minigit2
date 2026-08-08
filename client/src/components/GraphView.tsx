@@ -8,9 +8,11 @@ const NODE_RADIUS = 4;
 interface Props {
   nodes: CommitNode[];
   edges: GraphEdge[];
+  selectedHash: string | null;
+  onSelect: (hash: string) => void;
 }
 
-export default function GraphView({ nodes, edges }: Props) {
+export default function GraphView({ nodes, edges, selectedHash, onSelect }: Props) {
   if (nodes.length === 0) {
     return <p className="muted">Aucun commit dans ce repo.</p>;
   }
@@ -49,12 +51,26 @@ export default function GraphView({ nodes, edges }: Props) {
           );
         })}
         {nodes.map((node) => (
-          <circle key={node.hash} cx={laneX(node.lane)} cy={rowY(node.row)} r={NODE_RADIUS} fill={node.color} />
+          <circle
+            key={node.hash}
+            cx={laneX(node.lane)}
+            cy={rowY(node.row)}
+            r={NODE_RADIUS}
+            fill={node.color}
+            stroke={node.hash === selectedHash ? "currentColor" : "none"}
+            strokeWidth={node.hash === selectedHash ? 2 : 0}
+          />
         ))}
       </svg>
       <div className="graph-rows">
         {nodes.map((node) => (
-          <CommitRow key={node.hash} node={node} height={ROW_HEIGHT} />
+          <CommitRow
+            key={node.hash}
+            node={node}
+            height={ROW_HEIGHT}
+            selected={node.hash === selectedHash}
+            onSelect={() => onSelect(node.hash)}
+          />
         ))}
       </div>
     </div>

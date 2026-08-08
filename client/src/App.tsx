@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import type { GraphResponse, RepoInfo } from "@minigit2/shared";
+import type { DiffResponse, GraphResponse, RepoInfo } from "@minigit2/shared";
 import { api } from "./api/client";
 import AddRepoForm from "./components/AddRepoForm";
+import DiffPanel from "./components/DiffPanel";
 import GraphView from "./components/GraphView";
 import RepoSwitcher from "./components/RepoSwitcher";
 
@@ -15,6 +16,10 @@ export default function App() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [graph, setGraph] = useState<GraphResponse | null>(null);
   const [graphError, setGraphError] = useState<string | null>(null);
+  const [selectedHash, setSelectedHash] = useState<string | null>(null);
+  const [diff, setDiff] = useState<DiffResponse | null>(null);
+  const [diffLoading, setDiffLoading] = useState(false);
+  const [diffError, setDiffError] = useState<string | null>(null);
 
   const refreshRepos = useCallback(async () => {
     try {
@@ -56,6 +61,8 @@ export default function App() {
   const activeRepo = repos.find((r) => r.id === activeRepoId) ?? null;
 
   useEffect(() => {
+    setSelectedHash(null);
+    setDiff(null);
     if (!activeRepoId) {
       setGraph(null);
       return;
@@ -75,6 +82,30 @@ export default function App() {
     };
   }, [activeRepoId]);
 
+  useEffect(() => {
+    if (!activeRepoId || !selectedHash) {
+      setDiff(null);
+      return;
+    }
+    let cancelled = false;
+    setDiffLoading(true);
+    setDiffError(null);
+    api
+      .getDiff(activeRepoId, selectedHash)
+      .then((data) => {
+        if (!cancelled) setDiff(data);
+      })
+      .catch((err) => {
+        if (!cancelled) setDiffError((err as Error).message);
+      })
+      .finally(() => {
+        if (!cancelled) setDiffLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeRepoId, selectedHash]);
+
   return (
     <div className="app">
       <aside className="sidebar">
@@ -93,7 +124,21 @@ export default function App() {
           <>
             <p className="repo-path">{activeRepo.path}</p>
             {graphError && <p className="error">{graphError}</p>}
-            {graph && <GraphView nodes={graph.nodes} edges={graph.edges} />}
+            <div className="workspace">
+              <div className="graph-pane">
+                {graph && (
+                  <GraphView
+                    nodes={graph.nodes}
+                    edges={graph.edges}
+                    selectedHash={selectedHash}
+                    onSelect={setSelectedHash}
+                  />
+                )}
+              </div>
+              <div className="diff-pane">
+                <DiffPanel diff={diff} loading={diffLoading} error={diffError} />
+              </div>
+            </div>
           </>
         ) : (
           <p className="muted">Sélectionne ou ajoute un repo pour commencer.</p>

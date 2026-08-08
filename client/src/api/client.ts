@@ -1,4 +1,4 @@
-import type { GraphResponse, RepoInfo } from "@minigit2/shared";
+import type { DiffResponse, GraphResponse, RepoInfo } from "@minigit2/shared";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
@@ -27,4 +27,6 @@ export const api = {
     }),
   removeRepo: (id: string) => request<void>(`/repos/${id}`, { method: "DELETE" }),
   getGraph: (repoId: string) => request<GraphResponse>(`/repos/${repoId}/graph`),
+  getDiff: (repoId: string, hash: string) =>
+    request<DiffResponse>(`/repos/${repoId}/commits/${hash}/diff`),
 };
