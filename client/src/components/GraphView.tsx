@@ -10,9 +10,18 @@ interface Props {
   edges: GraphEdge[];
   selectedHash: string | null;
   onSelect: (hash: string) => void;
+  onCheckoutCommit: (hash: string) => void;
+  onCheckoutBranch: (name: string) => void;
 }
 
-export default function GraphView({ nodes, edges, selectedHash, onSelect }: Props) {
+export default function GraphView({
+  nodes,
+  edges,
+  selectedHash,
+  onSelect,
+  onCheckoutCommit,
+  onCheckoutBranch,
+}: Props) {
   if (nodes.length === 0) {
     return <p className="muted">Aucun commit dans ce repo.</p>;
   }
@@ -70,6 +79,8 @@ export default function GraphView({ nodes, edges, selectedHash, onSelect }: Prop
             height={ROW_HEIGHT}
             selected={node.hash === selectedHash}
             onSelect={() => onSelect(node.hash)}
+            onCheckoutCommit={() => onCheckoutCommit(node.hash)}
+            onCheckoutBranch={onCheckoutBranch}
           />
         ))}
       </div>

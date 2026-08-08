@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import type { DiffResponse, GraphResponse, RepoInfo } from "@minigit2/shared";
-import { api } from "./api/client";
+import type { DiffResponse, GraphResponse, RepoInfo, StatusResponse } from "@minigit2/shared";
+import { ApiRequestError, api } from "./api/client";
 import AddRepoForm from "./components/AddRepoForm";
+import ConfirmCheckoutDialog from "./components/ConfirmCheckoutDialog";
 import DiffPanel from "./components/DiffPanel";
 import GraphView from "./components/GraphView";
 import RepoSwitcher from "./components/RepoSwitcher";
+import StatusBar from "./components/StatusBar";
 
 const ACTIVE_REPO_KEY = "minigit2:activeRepoId";
 
@@ -20,6 +22,9 @@ export default function App() {
   const [diff, setDiff] = useState<DiffResponse | null>(null);
   const [diffLoading, setDiffLoading] = useState(false);
   const [diffError, setDiffError] = useState<string | null>(null);
+  const [status, setStatus] = useState<StatusResponse | null>(null);
+  const [pendingCheckoutRef, setPendingCheckoutRef] = useState<string | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   const refreshRepos = useCallback(async () => {
     try {
@@ -60,27 +65,37 @@ export default function App() {
 
   const activeRepo = repos.find((r) => r.id === activeRepoId) ?? null;
 
+  const refreshGraph = useCallback(async (repoId: string) => {
+    try {
+      const data = await api.getGraph(repoId);
+      setGraph(data);
+      setGraphError(null);
+    } catch (err) {
+      setGraphError((err as Error).message);
+    }
+  }, []);
+
+  const refreshStatus = useCallback(async (repoId: string) => {
+    try {
+      setStatus(await api.getStatus(repoId));
+    } catch {
+      setStatus(null);
+    }
+  }, []);
+
   useEffect(() => {
     setSelectedHash(null);
     setDiff(null);
+    setCheckoutError(null);
+    setPendingCheckoutRef(null);
     if (!activeRepoId) {
       setGraph(null);
+      setStatus(null);
       return;
     }
-    let cancelled = false;
-    setGraphError(null);
-    api
-      .getGraph(activeRepoId)
-      .then((data) => {
-        if (!cancelled) setGraph(data);
-      })
-      .catch((err) => {
-        if (!cancelled) setGraphError((err as Error).message);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeRepoId]);
+    refreshGraph(activeRepoId);
+    refreshStatus(activeRepoId);
+  }, [activeRepoId, refreshGraph, refreshStatus]);
 
   useEffect(() => {
     if (!activeRepoId || !selectedHash) {
@@ -106,6 +121,33 @@ export default function App() {
     };
   }, [activeRepoId, selectedHash]);
 
+  async function doCheckout(ref: string) {
+    if (!activeRepoId) return;
+    setCheckoutError(null);
+    try {
+      await api.checkout(activeRepoId, ref);
+      setPendingCheckoutRef(null);
+      await Promise.all([refreshGraph(activeRepoId), refreshStatus(activeRepoId)]);
+    } catch (err) {
+      setPendingCheckoutRef(null);
+      if (err instanceof ApiRequestError) {
+        setCheckoutError(err.message);
+      } else {
+        setCheckoutError((err as Error).message);
+      }
+    }
+  }
+
+  function requestCheckout(ref: string) {
+    if (status?.dirty) {
+      setPendingCheckoutRef(ref);
+      return;
+    }
+    doCheckout(ref);
+  }
+
+  const activeStatus = activeRepoId ? status : null;
+
   return (
     <div className="app">
       <aside className="sidebar">
@@ -123,7 +165,9 @@ export default function App() {
         {activeRepo ? (
           <>
             <p className="repo-path">{activeRepo.path}</p>
+            <StatusBar status={activeStatus} />
             {graphError && <p className="error">{graphError}</p>}
+            {checkoutError && <p className="error">{checkoutError}</p>}
             <div className="workspace">
               <div className="graph-pane">
                 {graph && (
@@ -132,6 +176,8 @@ export default function App() {
                     edges={graph.edges}
                     selectedHash={selectedHash}
                     onSelect={setSelectedHash}
+                    onCheckoutCommit={requestCheckout}
+                    onCheckoutBranch={requestCheckout}
                   />
                 )}
               </div>
@@ -144,6 +190,13 @@ export default function App() {
           <p className="muted">Sélectionne ou ajoute un repo pour commencer.</p>
         )}
       </main>
+      {pendingCheckoutRef && (
+        <ConfirmCheckoutDialog
+          target={pendingCheckoutRef}
+          onConfirm={() => doCheckout(pendingCheckoutRef)}
+          onCancel={() => setPendingCheckoutRef(null)}
+        />
+      )}
     </div>
   );
 }

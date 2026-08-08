@@ -1,0 +1,26 @@
+import { Router } from "express";
+import { CheckoutConflictError, checkoutRef } from "../git/checkout";
+import { getRepoStatus } from "../git/status";
+import { resolveRepo } from "../middleware/resolveRepo";
+
+export const checkoutRouter = Router({ mergeParams: true });
+
+checkoutRouter.post("/", resolveRepo, async (req, res) => {
+  const ref = req.body?.ref;
+  if (typeof ref !== "string" || ref.trim() === "") {
+    res.status(400).json({ error: "invalid_ref", message: "ref is required" });
+    return;
+  }
+
+  try {
+    await checkoutRef(req.repo!.path, ref);
+    const status = await getRepoStatus(req.repo!.path);
+    res.json({ ok: true, status });
+  } catch (err) {
+    if (err instanceof CheckoutConflictError) {
+      res.status(409).json({ error: "dirty_worktree", message: err.stderr || err.message });
+      return;
+    }
+    res.status(500).json({ error: "git_error", message: (err as Error).message });
+  }
+});

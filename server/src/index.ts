@@ -2,9 +2,11 @@ import express from "express";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { checkoutRouter } from "./routes/checkout";
 import { diffRouter } from "./routes/diff";
 import { graphRouter } from "./routes/graph";
 import { reposRouter } from "./routes/repos";
+import { statusRouter } from "./routes/status";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 4300);
@@ -19,6 +21,8 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/repos", reposRouter);
 app.use("/api/repos/:id/graph", graphRouter);
 app.use("/api/repos/:id/commits", diffRouter);
+app.use("/api/repos/:id/status", statusRouter);
+app.use("/api/repos/:id/checkout", checkoutRouter);
 
 const clientDist = path.resolve(__dirname, "../../client/dist");
 if (existsSync(clientDist)) {

@@ -1,4 +1,14 @@
-import type { DiffResponse, GraphResponse, RepoInfo } from "@minigit2/shared";
+import type { CheckoutResponse, DiffResponse, GraphResponse, RepoInfo, StatusResponse } from "@minigit2/shared";
+
+export class ApiRequestError extends Error {
+  readonly code: string;
+
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = "ApiRequestError";
+    this.code = code;
+  }
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
@@ -12,7 +22,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       // no JSON body, keep default message below
     }
-    throw new Error(body.message ?? `Request failed: ${res.status}`);
+    throw new ApiRequestError(body.error ?? "unknown_error", body.message ?? `Request failed: ${res.status}`);
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
@@ -29,4 +39,10 @@ export const api = {
   getGraph: (repoId: string) => request<GraphResponse>(`/repos/${repoId}/graph`),
   getDiff: (repoId: string, hash: string) =>
     request<DiffResponse>(`/repos/${repoId}/commits/${hash}/diff`),
+  getStatus: (repoId: string) => request<StatusResponse>(`/repos/${repoId}/status`),
+  checkout: (repoId: string, ref: string) =>
+    request<CheckoutResponse>(`/repos/${repoId}/checkout`, {
+      method: "POST",
+      body: JSON.stringify({ ref }),
+    }),
 };
