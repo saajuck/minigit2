@@ -49,17 +49,21 @@ export interface GraphResponse {
 
 export type FileStatus = "added" | "deleted" | "modified" | "renamed";
 
-export interface FileDiff {
+export interface FileDiffSummary {
   path: string;
   oldPath?: string;
   status: FileStatus;
-  patch: string;
 }
 
 export interface DiffResponse {
   hash: string;
   parentHash: string | null;
-  files: FileDiff[];
+  files: FileDiffSummary[];
+}
+
+export interface FilePatchResponse {
+  path: string;
+  patch: string;
 }
 
 export interface StatusResponse {
