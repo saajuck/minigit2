@@ -68,7 +68,7 @@ export default function App() {
   const [stashOpen, setStashOpen] = useState(false);
   const [reflogOpen, setReflogOpen] = useState(false);
   const [branchesOpen, setBranchesOpen] = useState(false);
-  const [focusedRef, setFocusedRef] = useState<{ hash: string; name: string } | null>(null);
+  const [focusedRefs, setFocusedRefs] = useState<{ hash: string; name: string }[]>([]);
   const [diffPaneWidth, setDiffPaneWidth] = useState<number>(() => {
     const stored = Number(localStorage.getItem(DIFF_WIDTH_KEY));
     return stored >= MIN_DIFF_WIDTH && stored <= MAX_DIFF_WIDTH ? stored : DEFAULT_DIFF_WIDTH;
@@ -201,7 +201,7 @@ export default function App() {
     setSearchCursor(-1);
     setShowLocalDiff(false);
     setLocalDiff(null);
-    setFocusedRef(null);
+    setFocusedRefs([]);
     if (!activeRepoId) {
       setGraph(null);
       setStatus(null);
@@ -333,31 +333,17 @@ export default function App() {
 
   const selectedCommit = graph?.nodes.find((n) => n.hash === selectedHash) ?? null;
 
-  // Client-side only — the graph is already fully loaded, so filtering it never costs a
-  // network round trip. Matches don't remove rows from the graph (that would require
-  // recomputing lanes/edges for an arbitrary subgraph); they just get highlighted, with
-  // Enter/prev-next jumping the selection (and virtualized scroll) to each one in turn.
-  const matchingNodes = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q || !graph) return [];
-    return graph.nodes.filter(
-      (n) => n.subject.toLowerCase().includes(q) || n.author.toLowerCase().includes(q) || n.hash.includes(q),
-    );
-  }, [graph, searchQuery]);
-  const matchHashes = useMemo(
-    () => (searchQuery.trim() ? new Set(matchingNodes.map((n) => n.hash)) : null),
-    [matchingNodes, searchQuery],
-  );
-
-  // Same "dim, don't remove" reasoning as search: recomputing lanes/edges for a subgraph would
-  // require server-side layout work, so focusing a branch just walks `parents` client-side from
-  // its head hash (already loaded, no extra request) to find its ancestor set.
+  // Walks `parents` client-side from each focused head (already loaded, no extra request) to
+  // find the union of their ancestor sets. Lanes are left as laid out for the full graph —
+  // recomputing them for the filtered subset would need server-side layout work — so the
+  // filtered view can leave gaps between lanes rather than repacking them.
   const focusHashes = useMemo(() => {
-    if (!focusedRef || !graph) return null;
+    if (focusedRefs.length === 0 || !graph) return null;
     const byHash = new Map(graph.nodes.map((n) => [n.hash, n]));
-    if (!byHash.has(focusedRef.hash)) return null;
+    const roots = focusedRefs.filter((r) => byHash.has(r.hash));
+    if (roots.length === 0) return null;
     const visited = new Set<string>();
-    const stack = [focusedRef.hash];
+    const stack = roots.map((r) => r.hash);
     while (stack.length > 0) {
       const hash = stack.pop()!;
       if (visited.has(hash)) continue;
@@ -369,25 +355,70 @@ export default function App() {
       }
     }
     return visited;
-  }, [graph, focusedRef]);
+  }, [graph, focusedRefs]);
 
-  function focusRef(hash: string, name: string) {
-    setFocusedRef({ hash, name });
+  // The graph pane renders only these — a hard filter, not a dim — so row indices need
+  // renumbering to stay contiguous for GraphView's scroll/virtualization math, and edges that
+  // reach outside the filtered set (into a branch that isn't focused) are dropped with it.
+  const focusedNodes = useMemo(() => {
+    if (!graph) return [];
+    if (!focusHashes) return graph.nodes;
+    return graph.nodes.filter((n) => focusHashes.has(n.hash)).map((n, row) => ({ ...n, row }));
+  }, [graph, focusHashes]);
+
+  const focusedEdges = useMemo(() => {
+    if (!graph) return [];
+    if (!focusHashes) return graph.edges;
+    return graph.edges.filter((e) => focusHashes.has(e.from) && focusHashes.has(e.to));
+  }, [graph, focusHashes]);
+
+  const focusedNames = useMemo(() => new Set(focusedRefs.map((r) => r.name)), [focusedRefs]);
+
+  // Client-side only — the graph is already fully loaded, so filtering it never costs a
+  // network round trip. Searches within whatever branch focus currently shows: matches don't
+  // remove rows from the graph, they just get highlighted, with Enter/prev-next jumping the
+  // selection (and virtualized scroll) to each one in turn.
+  const matchingNodes = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+    return focusedNodes.filter(
+      (n) => n.subject.toLowerCase().includes(q) || n.author.toLowerCase().includes(q) || n.hash.includes(q),
+    );
+  }, [focusedNodes, searchQuery]);
+  const matchHashes = useMemo(
+    () => (searchQuery.trim() ? new Set(matchingNodes.map((n) => n.hash)) : null),
+    [matchingNodes, searchQuery],
+  );
+
+  function toggleFocusRef(hash: string, name: string) {
+    setFocusedRefs((prev) =>
+      prev.some((r) => r.name === name) ? prev.filter((r) => r.name !== name) : [...prev, { hash, name }],
+    );
+  }
+
+  function removeFocusRef(name: string) {
+    setFocusedRefs((prev) => prev.filter((r) => r.name !== name));
   }
 
   function clearFocus() {
-    setFocusedRef(null);
+    setFocusedRefs([]);
   }
 
-  // If the focused branch's head commit falls out of the graph (deleted, or rebased away)
-  // between refreshes, focusHashes silently becomes null — clear the banner too instead of
-  // leaving it claiming a focus that no longer filters anything.
+  // If a focused branch's head commit falls out of the graph (deleted, or rebased away) between
+  // refreshes, drop just that one from the selection instead of clearing the whole focus.
   useEffect(() => {
-    if (focusedRef && graph && !graph.nodes.some((n) => n.hash === focusedRef.hash)) {
-      showToast(`Focused branch "${focusedRef.name}" was no longer found — focus cleared`);
-      setFocusedRef(null);
-    }
-  }, [graph, focusedRef]);
+    if (focusedRefs.length === 0 || !graph) return;
+    const liveHashes = new Set(graph.nodes.map((n) => n.hash));
+    const stale = focusedRefs.filter((r) => !liveHashes.has(r.hash));
+    if (stale.length === 0) return;
+    setFocusedRefs((prev) => prev.filter((r) => liveHashes.has(r.hash)));
+    const names = stale.map((r) => r.name).join(", ");
+    showToast(
+      stale.length === 1
+        ? `Focused branch "${names}" was no longer found — removed from focus`
+        : `Focused branches "${names}" were no longer found — removed from focus`,
+    );
+  }, [graph, focusedRefs]);
 
   function handleSearchQueryChange(q: string) {
     setSearchQuery(q);
@@ -522,12 +553,29 @@ export default function App() {
                   </button>
                 </div>
               )}
-              {focusedRef && (
+              {focusedRefs.length > 0 && (
                 <div className="focused-branch-banner">
-                  <span>Focused: {focusedRef.name}</span>
-                  <button type="button" className="btn btn-ghost" onClick={clearFocus}>
-                    ✕
-                  </button>
+                  <span>Focused:</span>
+                  <div className="focused-branch-chips">
+                    {focusedRefs.map((ref) => (
+                      <span key={ref.name} className="focused-branch-chip">
+                        {ref.name}
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-icon"
+                          onClick={() => removeFocusRef(ref.name)}
+                          aria-label={`Stop focusing ${ref.name}`}
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  {focusedRefs.length > 1 && (
+                    <button type="button" className="btn btn-ghost" onClick={clearFocus}>
+                      Clear all
+                    </button>
+                  )}
                 </div>
               )}
               {graphError && <p className="error">{graphError}</p>}
@@ -549,12 +597,11 @@ export default function App() {
                   {graph ? (
                     <GraphView
                       key={activeRepoId}
-                      nodes={graph.nodes}
-                      edges={graph.edges}
+                      nodes={focusedNodes}
+                      edges={focusedEdges}
                       selectedHash={selectedHash}
                       compareHash={compareHash}
                       matchHashes={matchHashes}
-                      focusHashes={focusHashes}
                       theme={theme}
                       onSelect={selectCommit}
                       onCompareClick={handleCompareClick}
@@ -598,9 +645,10 @@ export default function App() {
         <BranchesDialog
           repoId={activeRepoId}
           headRefreshKey={status ? `${status.branch ?? ""}:${status.headCommit ?? ""}` : null}
+          focusedNames={focusedNames}
           onClose={() => setBranchesOpen(false)}
           onCheckoutRef={requestCheckout}
-          onFocusRef={focusRef}
+          onToggleFocusRef={toggleFocusRef}
         />
       )}
       {pendingCheckoutRef && (
