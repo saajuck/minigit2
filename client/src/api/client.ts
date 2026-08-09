@@ -38,6 +38,10 @@ const SILENT_CODES = new Set([
   "not_found",
   "dirty_worktree",
   "not_a_directory",
+  // The selected/compared commit fell out of the repo (rebase, amend, or the auto-fetch's
+  // `--prune`) between the graph loading and the click — App.tsx recovers by refreshing the
+  // graph and clearing the stale selection, with its own toast, so this stays silent here.
+  "commit_not_found",
   // Fetching from remotes is opportunistic (runs on every refresh) — offline, no remote
   // configured, or a missing credential are all routine, not something to alarm the user with.
   "fetch_error",

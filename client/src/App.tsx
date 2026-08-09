@@ -152,6 +152,18 @@ export default function App() {
     }
   }, []);
 
+  // The selected/compared commit fell out of the repo between the graph loading and the click —
+  // most often a rebase/amend/force-push upstream combined with the auto-refresh's
+  // `git fetch --prune`. Recover the same way stale branch-focus is handled: drop the stale
+  // selection and reload the graph so it no longer offers that commit.
+  function recoverFromStaleCommit(repoId: string) {
+    setSelectedHash(null);
+    setCompareHash(null);
+    setDiffError(null);
+    showToast("That commit is no longer in the repository — refreshing the graph.");
+    refreshGraph(repoId);
+  }
+
   function selectCommit(hash: string) {
     setSelectedHash(hash);
     setCompareHash(null);
@@ -250,7 +262,12 @@ export default function App() {
         if (!cancelled) setDiff(data);
       })
       .catch((err) => {
-        if (!cancelled) setDiffError((err as Error).message);
+        if (cancelled) return;
+        if (err instanceof ApiRequestError && err.code === "commit_not_found") {
+          recoverFromStaleCommit(activeRepoId);
+        } else {
+          setDiffError((err as Error).message);
+        }
       })
       .finally(() => {
         if (!cancelled) setDiffLoading(false);
@@ -274,7 +291,12 @@ export default function App() {
         if (!cancelled) setCompare(data);
       })
       .catch((err) => {
-        if (!cancelled) setDiffError((err as Error).message);
+        if (cancelled) return;
+        if (err instanceof ApiRequestError && err.code === "commit_not_found") {
+          recoverFromStaleCommit(activeRepoId);
+        } else {
+          setDiffError((err as Error).message);
+        }
       })
       .finally(() => {
         if (!cancelled) setDiffLoading(false);
