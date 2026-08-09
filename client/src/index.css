@@ -503,8 +503,14 @@
 .file-diff-header {
   display: flex;
   align-items: center;
+}
+
+.file-diff-header-main {
+  display: flex;
+  align-items: center;
   gap: 8px;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: 8px 10px;
   background: transparent;
   border: none;
@@ -514,8 +520,39 @@
   font-family: inherit;
 }
 
-.file-diff-header:hover {
+.file-diff-header-main:hover {
   background: color-mix(in srgb, var(--color-text) 4%, transparent);
+}
+
+.file-diff-view-toggle {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+  padding: 4px 10px 4px 0;
+}
+
+.file-diff-view-toggle button {
+  padding: 2px 8px;
+  font-size: 11px;
+  border: 1px solid var(--color-divider);
+  background: transparent;
+  color: color-mix(in srgb, var(--color-text) 65%, transparent);
+  cursor: pointer;
+}
+
+.file-diff-view-toggle button:first-child {
+  border-radius: 3px 0 0 3px;
+}
+
+.file-diff-view-toggle button:last-child {
+  border-radius: 0 3px 3px 0;
+  border-left: none;
+}
+
+.file-diff-view-toggle button.active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-bg);
 }
 
 .file-diff-badge {
@@ -556,6 +593,68 @@
   font-size: 11.5px;
   line-height: 1.6;
   overflow-x: auto;
+}
+
+.blame-body {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.6;
+  overflow-x: auto;
+  padding: 6px 0 10px;
+}
+
+.blame-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 160px) 32px 1fr;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+}
+
+.blame-gutter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 1.6em;
+}
+
+.blame-avatar {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  object-fit: cover;
+  background: var(--color-divider);
+}
+
+.blame-hash-link {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--color-accent);
+}
+
+.blame-author {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--color-text) 65%, transparent);
+}
+
+.blame-line-number {
+  text-align: right;
+  color: color-mix(in srgb, var(--color-text) 40%, transparent);
+}
+
+.blame-content {
+  white-space: pre;
 }
 
 /* — folder browser dialog — */

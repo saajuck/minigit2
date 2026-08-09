@@ -1,5 +1,5 @@
-import { createHash } from "node:crypto";
 import type { CommitNode, GraphEdge } from "@minigit2/shared";
+import { gravatarUrl } from "../git/gravatar";
 import type { RawCommit } from "../git/log";
 
 const PALETTE = [
@@ -18,12 +18,6 @@ const PALETTE = [
 export interface GraphLayout {
   nodes: CommitNode[];
   edges: GraphEdge[];
-}
-
-/** Gravatar identicon fallback — no account required for the avatar to render something. */
-function gravatarUrl(email: string): string {
-  const hash = createHash("md5").update(email.trim().toLowerCase()).digest("hex");
-  return `https://www.gravatar.com/avatar/${hash}?s=64&d=identicon`;
 }
 
 /**
