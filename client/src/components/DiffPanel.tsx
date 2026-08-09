@@ -1,4 +1,4 @@
-import type { CommitNode, CompareResponse, DiffResponse } from "@minigit2/shared";
+import type { CommitNode, CompareResponse, DiffResponse, LocalDiffResponse } from "@minigit2/shared";
 import { api } from "../api/client";
 import type { Theme } from "../design-system/palette";
 import CopyableText from "./CopyableText";
@@ -9,15 +9,57 @@ interface Props {
   commit: CommitNode | null;
   diff: DiffResponse | null;
   compare: CompareResponse | null;
+  localDiff: LocalDiffResponse | null;
   loading: boolean;
   error: string | null;
   theme: Theme;
   onClearCompare: () => void;
+  onClearLocalDiff: () => void;
 }
 
-export default function DiffPanel({ repoId, commit, diff, compare, loading, error, theme, onClearCompare }: Props) {
+export default function DiffPanel({
+  repoId,
+  commit,
+  diff,
+  compare,
+  localDiff,
+  loading,
+  error,
+  theme,
+  onClearCompare,
+  onClearLocalDiff,
+}: Props) {
   if (loading) return <p className="muted">Loading diff…</p>;
   if (error) return <p className="error">{error}</p>;
+
+  if (localDiff && repoId) {
+    return (
+      <div className="diff-panel">
+        <div className="diff-meta">
+          <div className="diff-compare-header">
+            <span className="diff-subject">Local changes</span>
+            <button type="button" className="btn btn-ghost" onClick={onClearLocalDiff}>
+              Close
+            </button>
+          </div>
+        </div>
+        {localDiff.files.length === 0 ? (
+          <p className="muted">No uncommitted changes.</p>
+        ) : (
+          <div className="diff-files">
+            {localDiff.files.map((file) => (
+              <FileDiff
+                key={`local:${file.oldPath ?? file.path}`}
+                file={file}
+                theme={theme}
+                fetchPatch={() => api.getLocalDiffPatch(repoId, file.path).then((r) => r.patch)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (compare && repoId) {
     return (

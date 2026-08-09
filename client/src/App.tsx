@@ -1,15 +1,33 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { CompareResponse, DiffResponse, GraphResponse, RepoSummary, StatusResponse } from "@minigit2/shared";
+import type {
+  CompareResponse,
+  DiffResponse,
+  GraphResponse,
+  LocalDiffResponse,
+  RepoSummary,
+  StatusResponse,
+} from "@minigit2/shared";
 import { ApiRequestError, api } from "./api/client";
 import AddRepoDialog from "./components/AddRepoDialog";
 import CommitSearch from "./components/CommitSearch";
 import ConfirmCheckoutDialog from "./components/ConfirmCheckoutDialog";
 import DiffPanel from "./components/DiffPanel";
 import GraphView from "./components/GraphView";
+import ReflogDialog from "./components/ReflogDialog";
 import RepoSwitcher from "./components/RepoSwitcher";
 import ResizableDivider from "./components/ResizableDivider";
+import StashDialog from "./components/StashDialog";
 import StatusChips from "./components/StatusChips";
-import { GitBranchIcon, MoonIcon, PlusIcon, RefreshIcon, SunIcon } from "./design-system/icons";
+import {
+  ArchiveIcon,
+  FileEditIcon,
+  GitBranchIcon,
+  HistoryIcon,
+  MoonIcon,
+  PlusIcon,
+  RefreshIcon,
+  SunIcon,
+} from "./design-system/icons";
 import { useTheme } from "./design-system/useTheme";
 
 const ACTIVE_REPO_KEY = "minigit2:activeRepoId";
@@ -42,6 +60,10 @@ export default function App() {
   const [newCommitsCount, setNewCommitsCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchCursor, setSearchCursor] = useState(-1);
+  const [showLocalDiff, setShowLocalDiff] = useState(false);
+  const [localDiff, setLocalDiff] = useState<LocalDiffResponse | null>(null);
+  const [stashOpen, setStashOpen] = useState(false);
+  const [reflogOpen, setReflogOpen] = useState(false);
   const [diffPaneWidth, setDiffPaneWidth] = useState<number>(() => {
     const stored = Number(localStorage.getItem(DIFF_WIDTH_KEY));
     return stored >= MIN_DIFF_WIDTH && stored <= MAX_DIFF_WIDTH ? stored : DEFAULT_DIFF_WIDTH;
@@ -117,12 +139,22 @@ export default function App() {
     }
   }, []);
 
+  const refreshLocalDiff = useCallback(async (repoId: string) => {
+    try {
+      setLocalDiff(await api.getLocalDiff(repoId));
+    } catch {
+      setLocalDiff(null);
+    }
+  }, []);
+
   function selectCommit(hash: string) {
     setSelectedHash(hash);
     setCompareHash(null);
+    setShowLocalDiff(false);
   }
 
   function handleCompareClick(hash: string) {
+    setShowLocalDiff(false);
     if (compareHash === hash) {
       setCompareHash(null);
       return;
@@ -135,6 +167,12 @@ export default function App() {
     setCompareHash(hash);
   }
 
+  function openLocalDiff() {
+    setSelectedHash(null);
+    setCompareHash(null);
+    setShowLocalDiff(true);
+  }
+
   useEffect(() => {
     setSelectedHash(null);
     setCompareHash(null);
@@ -144,6 +182,8 @@ export default function App() {
     setNewCommitsCount(0);
     setSearchQuery("");
     setSearchCursor(-1);
+    setShowLocalDiff(false);
+    setLocalDiff(null);
     if (!activeRepoId) {
       setGraph(null);
       setStatus(null);
@@ -159,13 +199,35 @@ export default function App() {
       const previousHashes = new Set((graph?.nodes ?? []).map((n) => n.hash));
       const updated = await refreshGraph(activeRepoId);
       refreshStatus(activeRepoId);
+      if (showLocalDiff) refreshLocalDiff(activeRepoId);
       if (updated) {
         const newCount = updated.nodes.filter((n) => !previousHashes.has(n.hash)).length;
         if (newCount > 0) setNewCommitsCount((count) => count + newCount);
       }
     }, AUTO_REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [activeRepoId, refreshGraph, refreshStatus, graph]);
+  }, [activeRepoId, refreshGraph, refreshStatus, refreshLocalDiff, showLocalDiff, graph]);
+
+  useEffect(() => {
+    if (!activeRepoId || !showLocalDiff) return;
+    let cancelled = false;
+    setDiffLoading(true);
+    setDiffError(null);
+    api
+      .getLocalDiff(activeRepoId)
+      .then((data) => {
+        if (!cancelled) setLocalDiff(data);
+      })
+      .catch((err) => {
+        if (!cancelled) setDiffError((err as Error).message);
+      })
+      .finally(() => {
+        if (!cancelled) setDiffLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeRepoId, showLocalDiff]);
 
   useEffect(() => {
     if (!activeRepoId || !selectedHash || compareHash) {
@@ -324,20 +386,50 @@ export default function App() {
                   <h6>Active repository</h6>
                   <div className="repo-path">{activeRepo.path}</div>
                 </div>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => {
-                    refreshGraph(activeRepoId!);
-                    refreshStatus(activeRepoId!);
-                    setNewCommitsCount(0);
-                  }}
-                  disabled={graphLoading}
-                  title="Reload the graph and status now (also auto-refreshes every 30s)"
-                >
-                  <RefreshIcon />
-                  {graphLoading ? "Refreshing…" : "Refresh"}
-                </button>
+                <div className="content-header-actions">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={openLocalDiff}
+                    title="Show uncommitted working tree changes"
+                  >
+                    <FileEditIcon />
+                    Local changes
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setStashOpen(true)}
+                    title="View stashed changes"
+                  >
+                    <ArchiveIcon />
+                    Stash
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setReflogOpen(true)}
+                    title="View reflog"
+                  >
+                    <HistoryIcon />
+                    Reflog
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      refreshGraph(activeRepoId!);
+                      refreshStatus(activeRepoId!);
+                      if (showLocalDiff) refreshLocalDiff(activeRepoId!);
+                      setNewCommitsCount(0);
+                    }}
+                    disabled={graphLoading}
+                    title="Reload the graph and status now (also auto-refreshes every 30s)"
+                  >
+                    <RefreshIcon />
+                    {graphLoading ? "Refreshing…" : "Refresh"}
+                  </button>
+                </div>
               </div>
               <StatusChips status={status} theme={theme} />
               {newCommitsCount > 0 && (
@@ -391,10 +483,12 @@ export default function App() {
                     commit={selectedCommit}
                     diff={diff}
                     compare={compare}
+                    localDiff={showLocalDiff ? localDiff : null}
                     loading={diffLoading}
                     error={diffError}
                     theme={theme}
                     onClearCompare={() => setCompareHash(null)}
+                    onClearLocalDiff={() => setShowLocalDiff(false)}
                   />
                 </div>
               </div>
@@ -406,6 +500,8 @@ export default function App() {
       </div>
 
       {addRepoOpen && <AddRepoDialog onAdd={handleAddRepo} onClose={() => setAddRepoOpen(false)} />}
+      {stashOpen && activeRepoId && <StashDialog repoId={activeRepoId} onClose={() => setStashOpen(false)} />}
+      {reflogOpen && activeRepoId && <ReflogDialog repoId={activeRepoId} onClose={() => setReflogOpen(false)} />}
       {pendingCheckoutRef && (
         <ConfirmCheckoutDialog
           target={pendingCheckoutRef}

@@ -34,6 +34,10 @@ without editing it.
   aesthetic, qualitative lane palette), with a light/dark theme toggle
   persisted per browser. Sidebar repo cards show each repo's own branch and
   dirty state at a glance.
+- **Local changes, stash, reflog**: view the working tree's uncommitted diff
+  (staged, unstaged, and untracked files) in the same diff panel used for
+  commits; read-only lists of stashed changes and the reflog, each with
+  copyable hashes.
 
 > This list is updated as major features land, not for implementation
 > details — see the Git history for that.

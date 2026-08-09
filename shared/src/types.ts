@@ -54,7 +54,7 @@ export interface GraphResponse {
   edges: GraphEdge[];
 }
 
-export type FileStatus = "added" | "deleted" | "modified" | "renamed";
+export type FileStatus = "added" | "deleted" | "modified" | "renamed" | "untracked";
 
 export interface FileDiffSummary {
   path: string;
@@ -93,6 +93,34 @@ export interface StatusResponse {
 export interface CompareResponse {
   from: string;
   to: string;
+  files: FileDiffSummary[];
+}
+
+export interface StashEntry {
+  /** e.g. "stash@{0}" */
+  ref: string;
+  hash: string;
+  subject: string;
+  date: string;
+}
+
+export interface StashListResponse {
+  entries: StashEntry[];
+}
+
+export interface ReflogEntry {
+  hash: string;
+  shortHash: string;
+  /** git's %gs — the reflog subject, e.g. "checkout: moving from main to feature" */
+  action: string;
+  date: string;
+}
+
+export interface ReflogResponse {
+  entries: ReflogEntry[];
+}
+
+export interface LocalDiffResponse {
   files: FileDiffSummary[];
 }
 

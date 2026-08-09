@@ -47,7 +47,7 @@ async function diffFilePatch(repoPath: string, base: string, head: string, fileP
   return stdout.trimEnd();
 }
 
-function parseNameStatus(output: string): FileDiffSummary[] {
+export function parseNameStatus(output: string): FileDiffSummary[] {
   return output
     .split("\n")
     .map((line) => line.trim())

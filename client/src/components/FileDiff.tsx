@@ -15,6 +15,7 @@ const STATUS_META: Record<FileDiffSummary["status"], { letter: string; laneIndex
   modified: { letter: "M", laneIndex: 0 },
   deleted: { letter: "D", laneIndex: 5 },
   renamed: { letter: "R", laneIndex: 2 },
+  untracked: { letter: "U", laneIndex: 4 },
 };
 
 export default function FileDiff({ file, theme, fetchPatch }: Props) {

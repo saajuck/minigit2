@@ -7,7 +7,10 @@ import { compareRouter } from "./routes/compare";
 import { diffRouter } from "./routes/diff";
 import { fsRouter } from "./routes/fs";
 import { graphRouter } from "./routes/graph";
+import { localDiffRouter } from "./routes/localDiff";
+import { reflogRouter } from "./routes/reflog";
 import { reposRouter } from "./routes/repos";
+import { stashRouter } from "./routes/stash";
 import { statusRouter } from "./routes/status";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -27,6 +30,9 @@ app.use("/api/repos/:id/commits", diffRouter);
 app.use("/api/repos/:id/compare", compareRouter);
 app.use("/api/repos/:id/status", statusRouter);
 app.use("/api/repos/:id/checkout", checkoutRouter);
+app.use("/api/repos/:id/stash", stashRouter);
+app.use("/api/repos/:id/reflog", reflogRouter);
+app.use("/api/repos/:id/local-diff", localDiffRouter);
 
 const clientDist = path.resolve(__dirname, "../../client/dist");
 if (existsSync(clientDist)) {

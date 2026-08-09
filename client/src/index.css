@@ -184,6 +184,13 @@
   color: var(--color-accent);
 }
 
+.content-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .repo-path {
   font-family: var(--font-mono);
   font-size: 13px;
@@ -515,4 +522,47 @@
 
 .browser-list li button:hover {
   background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+
+/* — stash / reflog list dialogs — */
+.entry-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid var(--color-divider);
+}
+
+.entry-list-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.entry-list-row:last-child {
+  border-bottom: none;
+}
+
+.entry-list-hash {
+  font-family: var(--font-mono);
+  color: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.entry-list-subject {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entry-list-meta {
+  flex-shrink: 0;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+  font-size: 11.5px;
+  white-space: nowrap;
 }

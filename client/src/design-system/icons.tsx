@@ -83,3 +83,33 @@ export function ChevronRightIcon(props: SVGProps<SVGSVGElement>) {
     </Icon>
   );
 }
+
+export function ArchiveIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon width="13" height="13" {...props}>
+      <rect x="2" y="3" width="20" height="5" rx="1" />
+      <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" />
+      <path d="M10 13h4" />
+    </Icon>
+  );
+}
+
+export function HistoryIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon width="13" height="13" {...props}>
+      <path d="M3 12a9 9 0 1 0 3-6.7" />
+      <polyline points="3 3 3 8 8 8" />
+      <polyline points="12 7 12 12 16 14" />
+    </Icon>
+  );
+}
+
+export function FileEditIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon width="13" height="13" {...props}>
+      <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9" />
+      <path d="M14 2v5h5" />
+      <path d="M16 17l4.5-4.5a1.5 1.5 0 0 0-2-2L14 15v2h2z" />
+    </Icon>
+  );
+}

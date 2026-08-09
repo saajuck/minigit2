@@ -5,7 +5,10 @@ import type {
   FilePatchResponse,
   FsListResponse,
   GraphResponse,
+  LocalDiffResponse,
+  ReflogResponse,
   RepoSummary,
+  StashListResponse,
   StatusResponse,
 } from "@minigit2/shared";
 
@@ -66,4 +69,9 @@ export const api = {
     request<FilePatchResponse>(
       `/repos/${repoId}/compare/file?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&path=${encodeURIComponent(path)}`,
     ),
+  getStashList: (repoId: string) => request<StashListResponse>(`/repos/${repoId}/stash`),
+  getReflog: (repoId: string) => request<ReflogResponse>(`/repos/${repoId}/reflog`),
+  getLocalDiff: (repoId: string) => request<LocalDiffResponse>(`/repos/${repoId}/local-diff`),
+  getLocalDiffPatch: (repoId: string, path: string) =>
+    request<FilePatchResponse>(`/repos/${repoId}/local-diff/file?path=${encodeURIComponent(path)}`),
 };
