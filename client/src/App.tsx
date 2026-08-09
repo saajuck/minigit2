@@ -201,6 +201,7 @@ export default function App() {
     if (!activeRepoId) return;
     const interval = setInterval(async () => {
       const previousHashes = new Set((graph?.nodes ?? []).map((n) => n.hash));
+      await api.fetchRemote(activeRepoId).catch(() => {});
       const updated = await refreshGraph(activeRepoId);
       refreshStatus(activeRepoId);
       if (showLocalDiff) refreshLocalDiff(activeRepoId);
@@ -430,14 +431,16 @@ export default function App() {
                   <button
                     type="button"
                     className="btn btn-secondary"
-                    onClick={() => {
+                    onClick={async () => {
+                      setGraphLoading(true);
+                      await api.fetchRemote(activeRepoId!).catch(() => {});
                       refreshGraph(activeRepoId!);
                       refreshStatus(activeRepoId!);
                       if (showLocalDiff) refreshLocalDiff(activeRepoId!);
                       setNewCommitsCount(0);
                     }}
                     disabled={graphLoading}
-                    title="Reload the graph and status now (also auto-refreshes every 30s)"
+                    title="Fetch from remotes and reload the graph and status now (also auto-refreshes every 30s)"
                   >
                     <RefreshIcon />
                     {graphLoading ? "Refreshing…" : "Refresh"}

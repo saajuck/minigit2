@@ -37,6 +37,9 @@ const SILENT_CODES = new Set([
   "not_found",
   "dirty_worktree",
   "not_a_directory",
+  // Fetching from remotes is opportunistic (runs on every refresh) — offline, no remote
+  // configured, or a missing credential are all routine, not something to alarm the user with.
+  "fetch_error",
 ]);
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -103,4 +106,5 @@ export const api = {
   getLocalDiffPatch: (repoId: string, path: string) =>
     request<FilePatchResponse>(`/repos/${repoId}/local-diff/file?path=${encodeURIComponent(path)}`),
   getBranches: (repoId: string) => request<BranchesResponse>(`/repos/${repoId}/branches`),
+  fetchRemote: (repoId: string) => request<{ ok: true }>(`/repos/${repoId}/fetch`, { method: "POST" }),
 };
