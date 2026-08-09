@@ -322,7 +322,10 @@
   align-items: flex-start;
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow-y: auto;
+  /* Horizontal scroll lives only on .graph-svg-viewport (the lane strip) — the rest of a
+   * row is fixed/truncated width, so the pane itself never needs to scroll sideways. */
+  overflow-x: hidden;
 }
 
 /* Caps the lane area to a fixed number of lanes' worth of width (see VISIBLE_LANES in
@@ -386,7 +389,6 @@
   white-space: nowrap;
   flex: 0 1 auto;
   max-width: 420px;
-  min-width: 60px;
 }
 
 .ref-badge {
