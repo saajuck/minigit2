@@ -117,6 +117,16 @@ export function ListBranchesIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function TargetIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon width="13" height="13" {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="4.5" />
+      <circle cx="12" cy="12" r="0.7" fill="currentColor" />
+    </Icon>
+  );
+}
+
 export function FileEditIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon width="13" height="13" {...props}>
