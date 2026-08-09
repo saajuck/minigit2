@@ -113,6 +113,7 @@ export default function DiffPanel({
         <CopyableText className="diff-hash" value={commit.hash} display={commit.hash.slice(0, 7)} />
         <div className="diff-subject">{commit.subject}</div>
         <div className="diff-submeta">
+          <img className="commit-avatar" src={commit.authorAvatarUrl} alt="" loading="lazy" />
           {commit.author} · {formatDate(commit.date)} · parents:{" "}
           {commit.parents.length ? commit.parents.map((p) => p.slice(0, 7)).join(", ") : "none (root commit)"}
         </div>

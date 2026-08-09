@@ -3,8 +3,9 @@
 ::-webkit-scrollbar-track { background: transparent; }
 
 .app-root {
-  min-height: 100vh;
+  height: 100vh;
   min-width: 1180px;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   background: var(--color-bg);
@@ -165,11 +166,12 @@
 .content {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   padding: 28px 32px;
   display: flex;
   flex-direction: column;
   gap: 20px;
-  overflow: auto;
+  overflow: hidden;
 }
 
 .content-header {
@@ -226,15 +228,17 @@
 
 /* — workspace: graph + diff — */
 .workspace {
+  flex: 1;
   display: flex;
   gap: 24px;
-  align-items: flex-start;
+  align-items: stretch;
   min-height: 0;
 }
 
 .graph-pane {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -278,7 +282,8 @@
 .graph-view {
   display: flex;
   align-items: flex-start;
-  height: 600px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -341,6 +346,15 @@
   font-family: var(--font-mono);
   font-size: 10px;
   flex-shrink: 0;
+}
+
+.commit-avatar {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--color-divider);
 }
 
 .commit-author {
@@ -412,6 +426,8 @@
 /* — diff pane — */
 .diff-pane {
   flex-shrink: 0;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -426,7 +442,9 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-height: 540px;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
   overflow: auto;
 }
 
@@ -451,6 +469,9 @@
 }
 
 .diff-submeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 11px;
   color: color-mix(in srgb, var(--color-text) 55%, transparent);
   margin-top: 2px;
@@ -460,6 +481,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-width: 0;
 }
 
 .file-diff {
