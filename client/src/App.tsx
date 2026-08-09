@@ -556,6 +556,7 @@ export default function App() {
                     theme={theme}
                     onClearCompare={() => setCompareHash(null)}
                     onClearLocalDiff={() => setShowLocalDiff(false)}
+                    onSelectCommit={selectCommit}
                   />
                 </div>
               </div>

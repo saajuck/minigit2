@@ -1,4 +1,5 @@
 import type {
+  BlameResponse,
   BranchesResponse,
   CheckoutResponse,
   CompareResponse,
@@ -84,6 +85,8 @@ export const api = {
     request<DiffResponse>(`/repos/${repoId}/commits/${hash}/diff`),
   getFilePatch: (repoId: string, hash: string, path: string) =>
     request<FilePatchResponse>(`/repos/${repoId}/commits/${hash}/diff/file?path=${encodeURIComponent(path)}`),
+  getFileBlame: (repoId: string, hash: string, path: string) =>
+    request<BlameResponse>(`/repos/${repoId}/commits/${hash}/blame?path=${encodeURIComponent(path)}`),
   getStatus: (repoId: string) => request<StatusResponse>(`/repos/${repoId}/status`),
   checkout: (repoId: string, ref: string) =>
     request<CheckoutResponse>(`/repos/${repoId}/checkout`, {

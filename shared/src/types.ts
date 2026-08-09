@@ -74,6 +74,22 @@ export interface FilePatchResponse {
   patch: string;
 }
 
+export interface BlameLine {
+  hash: string;
+  author: string;
+  authorEmail: string;
+  authorAvatarUrl: string;
+  date: string;
+  summary: string;
+  lineNumber: number;
+  content: string;
+}
+
+export interface BlameResponse {
+  path: string;
+  lines: BlameLine[];
+}
+
 export interface AheadBehind {
   ahead: number;
   behind: number;

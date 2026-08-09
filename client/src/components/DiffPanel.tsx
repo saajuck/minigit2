@@ -15,6 +15,7 @@ interface Props {
   theme: Theme;
   onClearCompare: () => void;
   onClearLocalDiff: () => void;
+  onSelectCommit: (hash: string) => void;
 }
 
 export default function DiffPanel({
@@ -28,6 +29,7 @@ export default function DiffPanel({
   theme,
   onClearCompare,
   onClearLocalDiff,
+  onSelectCommit,
 }: Props) {
   if (loading) return <p className="muted">Loading diff…</p>;
   if (error) return <p className="error">{error}</p>;
@@ -128,6 +130,8 @@ export default function DiffPanel({
               file={file}
               theme={theme}
               fetchPatch={() => api.getFilePatch(repoId, diff.hash, file.path).then((r) => r.patch)}
+              fetchBlame={() => api.getFileBlame(repoId, diff.hash, file.path)}
+              onSelectCommit={onSelectCommit}
             />
           ))}
         </div>
