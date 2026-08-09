@@ -325,17 +325,22 @@
   overflow: auto;
 }
 
-.graph-svg {
+/* Caps the lane area to a fixed number of lanes' worth of width (see VISIBLE_LANES in
+ * GraphView.tsx) instead of letting it grow with however many branches happen to be
+ * concurrently open — a repo with 100+ live lanes scrolls *within* this strip rather than
+ * pushing .graph-rows (the commit text) far off to the right. */
+.graph-svg-viewport {
   flex-shrink: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .graph-rows {
   position: relative;
   flex: 1;
-  /* Commit text must stay visible even when the graph has enough concurrent lanes for
-   * .graph-svg's fixed width to exceed the pane — without a floor here, flex-shrink starves
-   * this column down to 0px and every row's text disappears while the SVG still renders fine. */
-  min-width: 260px;
+  /* Backstop for very narrow panes: keeps commit text from being flex-shrunk to 0 even if
+   * the capped graph-svg-viewport above still doesn't leave enough room. */
+  min-width: 200px;
 }
 
 .graph-row-positioner {
