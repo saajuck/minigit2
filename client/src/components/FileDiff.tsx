@@ -1,8 +1,9 @@
 import { useState, type CSSProperties } from "react";
 import type { FileDiffSummary } from "@minigit2/shared";
 import { api } from "../api/client";
-import { ChevronRightIcon } from "../design-system/icons";
 import { getPalette, type LaneColor, type Theme } from "../design-system/palette";
+import { ChevronRightIcon } from "../design-system/icons";
+import CopyableText from "./CopyableText";
 
 interface Props {
   repoId: string;
@@ -52,7 +53,7 @@ export default function FileDiff({ repoId, hash, file, theme }: Props) {
         <span className="file-diff-badge" style={{ background: badgeColor.bg, color: badgeColor.text }}>
           {meta.letter}
         </span>
-        <span className="file-diff-path">{file.path}</span>
+        <CopyableText className="file-diff-path" value={file.path} />
         <span className="file-diff-chevron" style={{ transform: `rotate(${open ? 90 : 0}deg)` }}>
           <ChevronRightIcon />
         </span>

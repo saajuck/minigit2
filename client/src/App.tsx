@@ -36,6 +36,7 @@ export default function App() {
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [pendingCheckoutRef, setPendingCheckoutRef] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [newCommitsCount, setNewCommitsCount] = useState(0);
   const [diffPaneWidth, setDiffPaneWidth] = useState<number>(() => {
     const stored = Number(localStorage.getItem(DIFF_WIDTH_KEY));
     return stored >= MIN_DIFF_WIDTH && stored <= MAX_DIFF_WIDTH ? stored : DEFAULT_DIFF_WIDTH;
@@ -88,14 +89,16 @@ export default function App() {
 
   const activeRepo = repos.find((r) => r.id === activeRepoId) ?? null;
 
-  const refreshGraph = useCallback(async (repoId: string) => {
+  const refreshGraph = useCallback(async (repoId: string): Promise<GraphResponse | null> => {
     setGraphLoading(true);
     try {
       const data = await api.getGraph(repoId);
       setGraph(data);
       setGraphError(null);
+      return data;
     } catch (err) {
       setGraphError((err as Error).message);
+      return null;
     } finally {
       setGraphLoading(false);
     }
@@ -114,6 +117,7 @@ export default function App() {
     setDiff(null);
     setCheckoutError(null);
     setPendingCheckoutRef(null);
+    setNewCommitsCount(0);
     if (!activeRepoId) {
       setGraph(null);
       setStatus(null);
@@ -125,12 +129,17 @@ export default function App() {
 
   useEffect(() => {
     if (!activeRepoId) return;
-    const interval = setInterval(() => {
-      refreshGraph(activeRepoId);
+    const interval = setInterval(async () => {
+      const previousHashes = new Set((graph?.nodes ?? []).map((n) => n.hash));
+      const updated = await refreshGraph(activeRepoId);
       refreshStatus(activeRepoId);
+      if (updated) {
+        const newCount = updated.nodes.filter((n) => !previousHashes.has(n.hash)).length;
+        if (newCount > 0) setNewCommitsCount((count) => count + newCount);
+      }
     }, AUTO_REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [activeRepoId, refreshGraph, refreshStatus]);
+  }, [activeRepoId, refreshGraph, refreshStatus, graph]);
 
   useEffect(() => {
     if (!activeRepoId || !selectedHash) {
@@ -233,6 +242,7 @@ export default function App() {
                   onClick={() => {
                     refreshGraph(activeRepoId!);
                     refreshStatus(activeRepoId!);
+                    setNewCommitsCount(0);
                   }}
                   disabled={graphLoading}
                   title="Reload the graph and status now (also auto-refreshes every 30s)"
@@ -242,6 +252,16 @@ export default function App() {
                 </button>
               </div>
               <StatusChips status={status} theme={theme} />
+              {newCommitsCount > 0 && (
+                <div className="new-commits-banner">
+                  <span>
+                    {newCommitsCount} new commit{newCommitsCount === 1 ? "" : "s"} loaded
+                  </span>
+                  <button type="button" className="btn btn-ghost" onClick={() => setNewCommitsCount(0)}>
+                    Dismiss
+                  </button>
+                </div>
+              )}
               {graphError && <p className="error">{graphError}</p>}
               {checkoutError && <p className="error">{checkoutError}</p>}
               <div className="workspace">
