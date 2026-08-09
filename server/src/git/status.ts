@@ -5,6 +5,7 @@ export async function getRepoStatus(repoPath: string): Promise<StatusResponse> {
   const branch = await getCurrentBranch(repoPath);
   const headCommit = await getHeadCommit(repoPath);
   const { staged, unstaged, untracked } = await getWorkingTreeCounts(repoPath);
+  const aheadBehind = branch.detached ? null : await getAheadBehind(repoPath);
 
   return {
     headCommit,
@@ -14,7 +15,22 @@ export async function getRepoStatus(repoPath: string): Promise<StatusResponse> {
     staged,
     unstaged,
     untracked,
+    aheadBehind,
   };
+}
+
+/** Null when there's no upstream configured (e.g. a local-only branch) — not an error. */
+async function getAheadBehind(repoPath: string): Promise<{ ahead: number; behind: number } | null> {
+  try {
+    const { stdout } = await runGit(repoPath, ["rev-list", "--left-right", "--count", "@{upstream}...HEAD"]);
+    const [behindRaw, aheadRaw] = stdout.trim().split(/\s+/);
+    const behind = Number(behindRaw);
+    const ahead = Number(aheadRaw);
+    if (Number.isNaN(ahead) || Number.isNaN(behind)) return null;
+    return { ahead, behind };
+  } catch {
+    return null;
+  }
 }
 
 async function getCurrentBranch(repoPath: string): Promise<{ name: string | null; detached: boolean }> {

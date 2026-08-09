@@ -12,12 +12,23 @@ interface Props {
   nodes: CommitNode[];
   edges: GraphEdge[];
   selectedHash: string | null;
+  compareHash: string | null;
   theme: Theme;
   onSelect: (hash: string) => void;
+  onCompareClick: (hash: string) => void;
   onCheckoutRef: (ref: string) => void;
 }
 
-export default function GraphView({ nodes, edges, selectedHash, theme, onSelect, onCheckoutRef }: Props) {
+export default function GraphView({
+  nodes,
+  edges,
+  selectedHash,
+  compareHash,
+  theme,
+  onSelect,
+  onCompareClick,
+  onCheckoutRef,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
@@ -137,16 +148,18 @@ export default function GraphView({ nodes, edges, selectedHash, theme, onSelect,
         {visibleNodes.map((node) => {
           const isHead = node.refs.some((r) => r.isHead);
           const selected = node.hash === selectedHash;
+          const compared = node.hash === compareHash;
           const color = laneColor(node.lane);
           return (
             <circle
               key={node.hash}
               cx={laneX(node.lane)}
               cy={rowY(node.row)}
-              r={selected ? 7 : 5.5}
+              r={selected || compared ? 7 : 5.5}
               fill={isHead ? color : "var(--color-bg)"}
               stroke={color}
-              strokeWidth={selected ? 3 : 2}
+              strokeWidth={selected || compared ? 3 : 2}
+              strokeDasharray={compared ? "3 2" : undefined}
             />
           );
         })}
@@ -159,7 +172,9 @@ export default function GraphView({ nodes, edges, selectedHash, theme, onSelect,
               height={ROW_HEIGHT}
               theme={theme}
               selected={node.hash === selectedHash}
+              compared={node.hash === compareHash}
               onSelect={() => onSelect(node.hash)}
+              onCompareClick={() => onCompareClick(node.hash)}
               onCheckoutRef={onCheckoutRef}
             />
           </div>

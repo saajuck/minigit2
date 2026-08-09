@@ -1,5 +1,6 @@
 import type {
   CheckoutResponse,
+  CompareResponse,
   DiffResponse,
   FilePatchResponse,
   FsListResponse,
@@ -57,4 +58,12 @@ export const api = {
     }),
   browseFs: (path?: string) =>
     request<FsListResponse>(`/fs${path ? `?path=${encodeURIComponent(path)}` : ""}`),
+  compare: (repoId: string, from: string, to: string) =>
+    request<CompareResponse>(
+      `/repos/${repoId}/compare?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+    ),
+  getComparePatch: (repoId: string, from: string, to: string, path: string) =>
+    request<FilePatchResponse>(
+      `/repos/${repoId}/compare/file?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&path=${encodeURIComponent(path)}`,
+    ),
 };

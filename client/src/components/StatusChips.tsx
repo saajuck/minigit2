@@ -26,6 +26,13 @@ export default function StatusChips({ status, theme }: Props) {
       {status.staged > 0 && <span className="tag tag-neutral">{status.staged} staged</span>}
       {status.unstaged > 0 && <span className="tag tag-neutral">{status.unstaged} unstaged</span>}
       {status.untracked > 0 && <span className="tag tag-neutral">{status.untracked} untracked</span>}
+      {status.aheadBehind && (status.aheadBehind.ahead > 0 || status.aheadBehind.behind > 0) && (
+        <span className="tag tag-neutral" title="Commits ahead/behind the tracked upstream branch">
+          {status.aheadBehind.ahead > 0 && `↑${status.aheadBehind.ahead}`}
+          {status.aheadBehind.ahead > 0 && status.aheadBehind.behind > 0 && " "}
+          {status.aheadBehind.behind > 0 && `↓${status.aheadBehind.behind}`}
+        </span>
+      )}
     </div>
   );
 }

@@ -1,15 +1,13 @@
 import { useState, type CSSProperties } from "react";
 import type { FileDiffSummary } from "@minigit2/shared";
-import { api } from "../api/client";
 import { getPalette, type LaneColor, type Theme } from "../design-system/palette";
 import { ChevronRightIcon } from "../design-system/icons";
 import CopyableText from "./CopyableText";
 
 interface Props {
-  repoId: string;
-  hash: string;
   file: FileDiffSummary;
   theme: Theme;
+  fetchPatch: () => Promise<string>;
 }
 
 const STATUS_META: Record<FileDiffSummary["status"], { letter: string; laneIndex: number }> = {
@@ -19,7 +17,7 @@ const STATUS_META: Record<FileDiffSummary["status"], { letter: string; laneIndex
   renamed: { letter: "R", laneIndex: 2 },
 };
 
-export default function FileDiff({ repoId, hash, file, theme }: Props) {
+export default function FileDiff({ file, theme, fetchPatch }: Props) {
   const [open, setOpen] = useState(false);
   const [patch, setPatch] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -35,9 +33,8 @@ export default function FileDiff({ repoId, hash, file, theme }: Props) {
     if (next && patch === null && !loading) {
       setLoading(true);
       setError(null);
-      api
-        .getFilePatch(repoId, hash, file.path)
-        .then((data) => setPatch(data.patch))
+      fetchPatch()
+        .then((text) => setPatch(text))
         .catch((err) => setError((err as Error).message))
         .finally(() => setLoading(false));
     }
@@ -53,7 +50,7 @@ export default function FileDiff({ repoId, hash, file, theme }: Props) {
         <span className="file-diff-badge" style={{ background: badgeColor.bg, color: badgeColor.text }}>
           {meta.letter}
         </span>
-        <CopyableText className="file-diff-path" value={file.path} />
+        <CopyableText className="file-diff-path" value={file.path} stopPropagation={false} />
         <span className="file-diff-chevron" style={{ transform: `rotate(${open ? 90 : 0}deg)` }}>
           <ChevronRightIcon />
         </span>

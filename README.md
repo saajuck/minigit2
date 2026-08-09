@@ -19,7 +19,14 @@ without editing it.
   uncommitted changes; `git`'s own refusal remains the final safety net (no
   force/discard).
 - **Status**: bar showing current branch / detached HEAD / working tree
-  dirty state, manual refresh button plus automatic refresh every 30s.
+  dirty state, ahead/behind counts vs the tracked upstream, manual refresh
+  button plus automatic refresh every 30s (new commits found in the
+  background surface as a dismissible banner instead of silently
+  replacing the list).
+- **Compare**: Ctrl/Cmd-click a second commit to diff it against the first
+  selected one (not just parent vs child).
+- **Keyboard**: Up/Down to move the graph selection, Enter to check it out.
+  Click a hash or file path to copy it.
 - **Design**: reskinned on the Industry design system (blueprint/wireframe
   aesthetic, qualitative lane palette), with a light/dark theme toggle
   persisted per browser. Sidebar repo cards show each repo's own branch and
