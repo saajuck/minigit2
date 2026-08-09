@@ -109,7 +109,12 @@ export default function GraphView({
     const from = rowByHash.get(edge.from);
     const to = rowByHash.get(edge.to);
     if (!from || !to) return false;
-    return (from.row >= firstRow && from.row <= lastRow) || (to.row >= firstRow && to.row <= lastRow);
+    // Interval overlap, not "either endpoint is inside" — an edge spanning a wide row range
+    // (e.g. a branch merged back long after it forked) must still be drawn while scrolled to
+    // a point between its two endpoints, even though neither endpoint itself is on screen.
+    const minRow = Math.min(from.row, to.row);
+    const maxRow = Math.max(from.row, to.row);
+    return minRow <= lastRow && maxRow >= firstRow;
   });
 
   const laneX = (lane: number) => PAD_X + lane * LANE_WIDTH;
