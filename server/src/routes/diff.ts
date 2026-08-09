@@ -1,16 +1,28 @@
-import { Router } from "express";
+import { Router, type Response } from "express";
 import { getFileBlame } from "../git/blame";
 import { getCommitFileList, getCommitFilePatch } from "../git/diff";
+import { isMissingObjectError } from "../git/errorClassification";
 import { resolveRepo } from "../middleware/resolveRepo";
 
 export const diffRouter = Router({ mergeParams: true });
+
+const COMMIT_NOT_FOUND_MESSAGE =
+  "This commit is no longer in the repository — history may have been rewritten or pruned since the graph was loaded.";
+
+function respondGitError(res: Response, err: unknown) {
+  if (isMissingObjectError(err)) {
+    res.status(404).json({ error: "commit_not_found", message: COMMIT_NOT_FOUND_MESSAGE });
+    return;
+  }
+  res.status(500).json({ error: "git_error", message: (err as Error).message });
+}
 
 diffRouter.get("/:hash/diff", resolveRepo, async (req, res) => {
   try {
     const diff = await getCommitFileList(req.repo!.path, req.params.hash as string);
     res.json(diff);
   } catch (err) {
-    res.status(500).json({ error: "git_error", message: (err as Error).message });
+    respondGitError(res, err);
   }
 });
 
@@ -24,7 +36,7 @@ diffRouter.get("/:hash/diff/file", resolveRepo, async (req, res) => {
     const patch = await getCommitFilePatch(req.repo!.path, req.params.hash as string, filePath);
     res.json({ path: filePath, patch });
   } catch (err) {
-    res.status(500).json({ error: "git_error", message: (err as Error).message });
+    respondGitError(res, err);
   }
 });
 
@@ -38,6 +50,6 @@ diffRouter.get("/:hash/blame", resolveRepo, async (req, res) => {
     const blame = await getFileBlame(req.repo!.path, req.params.hash as string, filePath);
     res.json(blame);
   } catch (err) {
-    res.status(500).json({ error: "git_error", message: (err as Error).message });
+    respondGitError(res, err);
   }
 });
