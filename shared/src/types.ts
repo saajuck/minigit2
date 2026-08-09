@@ -96,6 +96,19 @@ export interface CompareResponse {
   files: FileDiffSummary[];
 }
 
+export interface BranchInfo {
+  name: string;
+  hash: string;
+  isHead: boolean;
+}
+
+export interface BranchesResponse {
+  local: BranchInfo[];
+  remote: BranchInfo[];
+  /** Short name (e.g. "main"), resolved from origin/HEAD or a best-effort guess. Null if undetermined. */
+  defaultBranch: string | null;
+}
+
 export interface StashEntry {
   /** e.g. "stash@{0}" */
   ref: string;
