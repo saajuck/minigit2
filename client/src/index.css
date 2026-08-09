@@ -322,7 +322,7 @@
   align-items: flex-start;
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow: auto;
 }
 
 .graph-svg {
@@ -332,7 +332,10 @@
 .graph-rows {
   position: relative;
   flex: 1;
-  min-width: 0;
+  /* Commit text must stay visible even when the graph has enough concurrent lanes for
+   * .graph-svg's fixed width to exceed the pane — without a floor here, flex-shrink starves
+   * this column down to 0px and every row's text disappears while the SVG still renders fine. */
+  min-width: 260px;
 }
 
 .graph-row-positioner {
