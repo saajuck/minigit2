@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
-import type { DiffResponse, GraphResponse, RepoInfo, StatusResponse } from "@minigit2/shared";
+import type { DiffResponse, GraphResponse, RepoSummary, StatusResponse } from "@minigit2/shared";
 import { ApiRequestError, api } from "./api/client";
-import AddRepoForm from "./components/AddRepoForm";
+import AddRepoDialog from "./components/AddRepoDialog";
 import ConfirmCheckoutDialog from "./components/ConfirmCheckoutDialog";
 import DiffPanel from "./components/DiffPanel";
 import GraphView from "./components/GraphView";
 import RepoSwitcher from "./components/RepoSwitcher";
 import ResizableDivider from "./components/ResizableDivider";
-import StatusBar from "./components/StatusBar";
+import StatusChips from "./components/StatusChips";
+import { GitBranchIcon, MoonIcon, PlusIcon, RefreshIcon, SunIcon } from "./design-system/icons";
+import { useTheme } from "./design-system/useTheme";
 
 const ACTIVE_REPO_KEY = "minigit2:activeRepoId";
 const DIFF_WIDTH_KEY = "minigit2:diffPaneWidth";
@@ -17,11 +19,13 @@ const DEFAULT_DIFF_WIDTH = 420;
 const AUTO_REFRESH_INTERVAL_MS = 30_000;
 
 export default function App() {
-  const [repos, setRepos] = useState<RepoInfo[]>([]);
+  const [theme, toggleTheme] = useTheme();
+  const [repos, setRepos] = useState<RepoSummary[]>([]);
   const [activeRepoId, setActiveRepoId] = useState<string | null>(() =>
     localStorage.getItem(ACTIVE_REPO_KEY),
   );
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [addRepoOpen, setAddRepoOpen] = useState(false);
   const [graph, setGraph] = useState<GraphResponse | null>(null);
   const [graphLoading, setGraphLoading] = useState(false);
   const [graphError, setGraphError] = useState<string | null>(null);
@@ -177,68 +181,107 @@ export default function App() {
     doCheckout(ref);
   }
 
-  const activeStatus = activeRepoId ? status : null;
+  const selectedCommit = graph?.nodes.find((n) => n.hash === selectedHash) ?? null;
 
   return (
-    <div className="app">
-      <aside className="sidebar">
-        <h1>minigit2</h1>
-        {loadError && <p className="error">{loadError}</p>}
-        <RepoSwitcher
-          repos={repos}
-          activeRepoId={activeRepoId}
-          onSelect={setActiveRepoId}
-          onRemove={handleRemoveRepo}
-        />
-        <AddRepoForm onAdd={handleAddRepo} />
-      </aside>
-      <main className="content">
-        {activeRepo ? (
-          <>
-            <div className="content-header">
-              <p className="repo-path">{activeRepo.path}</p>
-              <button
-                type="button"
-                className="refresh-button"
-                onClick={() => {
-                  refreshGraph(activeRepoId!);
-                  refreshStatus(activeRepoId!);
-                }}
-                disabled={graphLoading}
-                title="Reload the graph and status now (also auto-refreshes every 30s)"
-              >
-                {graphLoading ? "Refreshing…" : "Refresh"}
-              </button>
-            </div>
-            <StatusBar status={activeStatus} />
-            {graphError && <p className="error">{graphError}</p>}
-            {checkoutError && <p className="error">{checkoutError}</p>}
-            <div className="workspace">
-              <div className="graph-pane">
-                {graph ? (
-                  <GraphView
-                    key={activeRepoId}
-                    nodes={graph.nodes}
-                    edges={graph.edges}
-                    selectedHash={selectedHash}
-                    onSelect={setSelectedHash}
-                    onCheckoutCommit={requestCheckout}
-                    onCheckoutBranch={requestCheckout}
+    <div data-theme={theme} className="app-root">
+      <div className="nav">
+        <span className="nav-brand">
+          <GitBranchIcon />
+          minigit2
+        </span>
+        <span className="tag tag-neutral">local · read-only</span>
+        <button type="button" className="btn btn-ghost btn-icon" title="Toggle theme" onClick={toggleTheme}>
+          {theme === "dark" ? <MoonIcon /> : <SunIcon />}
+        </button>
+      </div>
+
+      <div className="body-row">
+        <aside className="sidebar">
+          <div className="sidebar-header">
+            <h6>Repositories</h6>
+          </div>
+          {loadError && <p className="error">{loadError}</p>}
+          <RepoSwitcher
+            repos={repos}
+            activeRepoId={activeRepoId}
+            theme={theme}
+            onSelect={setActiveRepoId}
+            onRemove={handleRemoveRepo}
+          />
+          <button
+            type="button"
+            className="btn btn-secondary btn-block sidebar-add-btn"
+            onClick={() => setAddRepoOpen(true)}
+          >
+            <PlusIcon />
+            Add repository
+          </button>
+        </aside>
+
+        <main className="content">
+          {activeRepo ? (
+            <>
+              <div className="content-header">
+                <div>
+                  <h6>Active repository</h6>
+                  <div className="repo-path">{activeRepo.path}</div>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    refreshGraph(activeRepoId!);
+                    refreshStatus(activeRepoId!);
+                  }}
+                  disabled={graphLoading}
+                  title="Reload the graph and status now (also auto-refreshes every 30s)"
+                >
+                  <RefreshIcon />
+                  {graphLoading ? "Refreshing…" : "Refresh"}
+                </button>
+              </div>
+              <StatusChips status={status} theme={theme} />
+              {graphError && <p className="error">{graphError}</p>}
+              {checkoutError && <p className="error">{checkoutError}</p>}
+              <div className="workspace">
+                <div className="graph-pane">
+                  <h6>Commit graph</h6>
+                  {graph ? (
+                    <GraphView
+                      key={activeRepoId}
+                      nodes={graph.nodes}
+                      edges={graph.edges}
+                      selectedHash={selectedHash}
+                      theme={theme}
+                      onSelect={setSelectedHash}
+                      onCheckoutRef={requestCheckout}
+                    />
+                  ) : (
+                    graphLoading && <p className="muted">Loading graph…</p>
+                  )}
+                </div>
+                <ResizableDivider onResize={handleDiffPaneResize} />
+                <div className="diff-pane" style={{ width: diffPaneWidth }}>
+                  <h6>Diff</h6>
+                  <DiffPanel
+                    repoId={activeRepoId}
+                    commit={selectedCommit}
+                    diff={diff}
+                    loading={diffLoading}
+                    error={diffError}
+                    theme={theme}
                   />
-                ) : (
-                  graphLoading && <p className="muted">Loading graph…</p>
-                )}
+                </div>
               </div>
-              <ResizableDivider onResize={handleDiffPaneResize} />
-              <div className="diff-pane" style={{ width: diffPaneWidth }}>
-                <DiffPanel repoId={activeRepoId} diff={diff} loading={diffLoading} error={diffError} />
-              </div>
-            </div>
-          </>
-        ) : (
-          <p className="muted">Select or add a repo to get started.</p>
-        )}
-      </main>
+            </>
+          ) : (
+            <p className="no-active-repo">Select or add a repository to begin.</p>
+          )}
+        </main>
+      </div>
+
+      {addRepoOpen && <AddRepoDialog onAdd={handleAddRepo} onClose={() => setAddRepoOpen(false)} />}
       {pendingCheckoutRef && (
         <ConfirmCheckoutDialog
           target={pendingCheckoutRef}

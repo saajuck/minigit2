@@ -189,3 +189,44 @@ l'historique Git pour le détail.
   valider visuellement le rendu du graphe et les checkouts.
 - `npm run build && npm start` pour valider le mode "un seul process" avant
   de considérer une phase terminée.
+
+## Extension : reskin design system "Industry"
+
+### Contexte
+
+Handoff de design reçu (zip avec README, prototype interactif `.dc.html`,
+tokens CSS et guide du design system "Industry" — esthétique
+blueprint/wireframe, coins carrés, marques d'enregistrement "+", accent
+steel-blue). Le handoff référençait l'ancienne branche
+`claude/gitkraken-discussion-5isv4o` et n'avait pas connaissance des
+évolutions ultérieures (navigateur de dossiers, panneau resizable,
+virtualisation, diff lazy, auto-refresh) — implémenté en réconciliant les
+deux : fidélité visuelle au handoff, zéro régression fonctionnelle.
+
+### Ce qui a changé
+
+- `client/src/design-system/` : tokens CSS portés du handoff (+ override
+  `[data-theme="dark"]`, ajout d'un token `--font-mono`), palette qualitative
+  à 6 couleurs par lane (`palette.ts`), icônes Lucide en SVG inline
+  (`icons.tsx`), hook de thème persisté en `localStorage` (`useTheme.ts`).
+- Tous les composants restylés : nav bar (marque + tag + toggle thème),
+  cartes de repo (blueprint, pastille dirty, branche visible par repo —
+  nouveau : `GET /api/repos` calcule maintenant un statut léger par repo via
+  `getRepoStatus`, exposé comme `RepoSummary` dans `shared/src/types.ts`),
+  dialogues (ajout de repo — garde le bouton "Browse…" du navigateur de
+  dossiers — et confirmation de checkout), graphe (dimensions du handoff
+  `ROW_H=34`/`LANE_W=22`, nœuds creux sauf HEAD), panneau de diff (badges de
+  statut par fichier colorés par lane, coloration des lignes de patch par la
+  palette).
+- Nouveau : double-clic sur un badge `remote`/`tag` déclenche aussi un
+  checkout (détaché), pas seulement les badges de branche — le backend
+  accepte déjà n'importe quelle chaîne de ref, donc aucun changement API.
+- Header du panneau de diff enrichi : sujet, auteur, date, parents (données
+  déjà disponibles côté client via le nœud du graphe sélectionné, pas
+  d'appel réseau supplémentaire).
+
+### Vérifié sans régression
+
+Navigateur de dossiers, panneau resizable, virtualisation (testée à nouveau
+sur un repo synthétique de 1543 commits), diff lazy par fichier, auto-refresh
+30s, checkout branche/détaché/distant/tag, thème clair/sombre.

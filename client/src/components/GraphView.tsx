@@ -1,29 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import type { CommitNode, GraphEdge } from "@minigit2/shared";
+import { getPalette, type Theme } from "../design-system/palette";
 import CommitRow from "./CommitRow";
 
-const ROW_HEIGHT = 28;
-const LANE_WIDTH = 16;
-const NODE_RADIUS = 4;
+const ROW_HEIGHT = 34;
+const LANE_WIDTH = 22;
+const PAD_X = 18;
 const OVERSCAN_ROWS = 8;
 
 interface Props {
   nodes: CommitNode[];
   edges: GraphEdge[];
   selectedHash: string | null;
+  theme: Theme;
   onSelect: (hash: string) => void;
-  onCheckoutCommit: (hash: string) => void;
-  onCheckoutBranch: (name: string) => void;
+  onCheckoutRef: (ref: string) => void;
 }
 
-export default function GraphView({
-  nodes,
-  edges,
-  selectedHash,
-  onSelect,
-  onCheckoutCommit,
-  onCheckoutBranch,
-}: Props) {
+export default function GraphView({ nodes, edges, selectedHash, theme, onSelect, onCheckoutRef }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
@@ -40,11 +34,19 @@ export default function GraphView({
   }, []);
 
   if (nodes.length === 0) {
-    return <p className="muted">No commits in this repo.</p>;
+    return (
+      <div className="empty-box empty-box-lg">
+        <span className="empty-box-title">No commits yet</span>
+        <span>This branch hasn&rsquo;t been born — make a first commit to see it here.</span>
+      </div>
+    );
   }
 
+  const pal = getPalette(theme);
+  const laneColor = (lane: number) => pal[lane % pal.length]!.stroke;
+
   const maxLane = nodes.reduce((max, n) => Math.max(max, n.lane), 0);
-  const graphWidth = (maxLane + 1) * LANE_WIDTH;
+  const graphWidth = PAD_X + (maxLane + 1) * LANE_WIDTH;
   const totalHeight = nodes.length * ROW_HEIGHT;
   const rowByHash = new Map(nodes.map((n) => [n.hash, n]));
 
@@ -64,11 +66,19 @@ export default function GraphView({
     return (from.row >= firstRow && from.row <= lastRow) || (to.row >= firstRow && to.row <= lastRow);
   });
 
-  const laneX = (lane: number) => lane * LANE_WIDTH + LANE_WIDTH / 2;
-  const rowY = (row: number) => row * ROW_HEIGHT + ROW_HEIGHT / 2;
+  const laneX = (lane: number) => PAD_X + lane * LANE_WIDTH;
+  const rowY = (row: number) => ROW_HEIGHT / 2 + row * ROW_HEIGHT;
 
   return (
-    <div className="graph-view" ref={containerRef} onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}>
+    <div
+      className="blueprint graph-view"
+      ref={containerRef}
+      onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+    >
+      <i className="corner tl" />
+      <i className="corner tr" />
+      <i className="corner bl" />
+      <i className="corner br" />
       <svg width={graphWidth} height={totalHeight} className="graph-svg">
         {visibleEdges.map((edge) => {
           const from = rowByHash.get(edge.from);
@@ -78,32 +88,38 @@ export default function GraphView({
           const y1 = rowY(from.row);
           const x2 = laneX(edge.toLane);
           const y2 = rowY(to.row);
+          const color = laneColor(from.lane);
           const key = `${edge.from}:${edge.to}`;
           if (x1 === x2) {
-            return <line key={key} x1={x1} y1={y1} x2={x2} y2={y2} stroke={from.color} strokeWidth={2} />;
+            return <line key={key} x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth={2} />;
           }
           const midY = (y1 + y2) / 2;
           return (
             <path
               key={key}
-              d={`M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`}
-              stroke={from.color}
+              d={`M${x1} ${y1} C${x1} ${midY} ${x2} ${midY} ${x2} ${y2}`}
+              stroke={color}
               strokeWidth={2}
               fill="none"
             />
           );
         })}
-        {visibleNodes.map((node) => (
-          <circle
-            key={node.hash}
-            cx={laneX(node.lane)}
-            cy={rowY(node.row)}
-            r={NODE_RADIUS}
-            fill={node.color}
-            stroke={node.hash === selectedHash ? "currentColor" : "none"}
-            strokeWidth={node.hash === selectedHash ? 2 : 0}
-          />
-        ))}
+        {visibleNodes.map((node) => {
+          const isHead = node.refs.some((r) => r.isHead);
+          const selected = node.hash === selectedHash;
+          const color = laneColor(node.lane);
+          return (
+            <circle
+              key={node.hash}
+              cx={laneX(node.lane)}
+              cy={rowY(node.row)}
+              r={selected ? 7 : 5.5}
+              fill={isHead ? color : "var(--color-bg)"}
+              stroke={color}
+              strokeWidth={selected ? 3 : 2}
+            />
+          );
+        })}
       </svg>
       <div className="graph-rows" style={{ height: totalHeight }}>
         {visibleNodes.map((node) => (
@@ -111,10 +127,10 @@ export default function GraphView({
             <CommitRow
               node={node}
               height={ROW_HEIGHT}
+              theme={theme}
               selected={node.hash === selectedHash}
               onSelect={() => onSelect(node.hash)}
-              onCheckoutCommit={() => onCheckoutCommit(node.hash)}
-              onCheckoutBranch={onCheckoutBranch}
+              onCheckoutRef={onCheckoutRef}
             />
           </div>
         ))}

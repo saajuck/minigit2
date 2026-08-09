@@ -4,7 +4,7 @@ import type {
   FilePatchResponse,
   FsListResponse,
   GraphResponse,
-  RepoInfo,
+  RepoSummary,
   StatusResponse,
 } from "@minigit2/shared";
 
@@ -37,9 +37,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  listRepos: () => request<{ repos: RepoInfo[] }>("/repos"),
+  listRepos: () => request<{ repos: RepoSummary[] }>("/repos"),
   addRepo: (path: string) =>
-    request<{ repo: RepoInfo }>("/repos", {
+    request<{ repo: RepoSummary }>("/repos", {
       method: "POST",
       body: JSON.stringify({ path }),
     }),

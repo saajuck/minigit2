@@ -30,8 +30,9 @@ export default function RepoPathBrowser({ onChoose, onClose }: Props) {
   }, []);
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal browser-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="dialog-backdrop" onClick={onClose}>
+      <div className="dialog browser-dialog" onClick={(e) => e.stopPropagation()}>
+        <div className="dialog-title">Choose a folder</div>
         <p className="browser-path">{current ?? "…"}</p>
         {error && <p className="error">{error}</p>}
         <ul className="browser-list">
@@ -50,11 +51,16 @@ export default function RepoPathBrowser({ onChoose, onClose }: Props) {
             </li>
           ))}
         </ul>
-        <div className="modal-actions">
-          <button type="button" onClick={onClose}>
+        <div className="dialog-actions">
+          <button type="button" className="btn btn-secondary" onClick={onClose}>
             Cancel
           </button>
-          <button type="button" className="primary" disabled={!current} onClick={() => current && onChoose(current)}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={!current}
+            onClick={() => current && onChoose(current)}
+          >
             Choose this folder
           </button>
         </div>

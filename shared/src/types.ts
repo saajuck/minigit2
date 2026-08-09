@@ -5,6 +5,13 @@ export interface RepoInfo {
   addedAt: string;
 }
 
+/** RepoInfo plus a live snapshot of branch/dirty state, computed at request time (not persisted). */
+export interface RepoSummary extends RepoInfo {
+  branch: string | null;
+  detached: boolean;
+  dirty: boolean;
+}
+
 export interface FsDirectory {
   name: string;
   path: string;
