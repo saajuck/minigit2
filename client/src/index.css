@@ -323,19 +323,26 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  /* Horizontal scroll lives only on .graph-svg-viewport (the lane strip) — the rest of a
-   * row is fixed/truncated width, so the pane itself never needs to scroll sideways. */
+  /* The lane area is a fixed, user-resizable width (see .graph-svg-viewport) and the rest
+   * of a row is fixed/truncated width, so the pane itself never needs to scroll sideways. */
   overflow-x: hidden;
 }
 
-/* Caps the lane area to a fixed number of lanes' worth of width (see VISIBLE_LANES in
- * GraphView.tsx) instead of letting it grow with however many branches happen to be
- * concurrently open — a repo with 100+ live lanes scrolls *within* this strip rather than
- * pushing .graph-rows (the commit text) far off to the right. */
+/* User-resizable (via the ResizableDivider in GraphView.tsx) instead of growing with however
+ * many branches happen to be concurrently open — dragged independently of the graph's own
+ * lane count, like VS Code's Git Graph extension's column resize. No scroll: lanes beyond
+ * the chosen width are hidden, faded out at the edge by .graph-svg-viewport-overflowing
+ * rather than pushing .graph-rows (the commit text) further and further right. */
 .graph-svg-viewport {
   flex-shrink: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: hidden;
+}
+
+.graph-svg-viewport-overflowing {
+  /* Soft-fade the last 12px so a hidden lane reads as "more here, drag to reveal" rather
+   * than an abrupt crop — same fade width as VS Code's Git Graph extension. */
+  mask-image: linear-gradient(to right, black calc(100% - 12px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 12px), transparent 100%);
 }
 
 .graph-rows {

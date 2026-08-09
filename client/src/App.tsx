@@ -13,7 +13,7 @@ import BranchesDialog from "./components/BranchesDialog";
 import CommitSearch from "./components/CommitSearch";
 import ConfirmCheckoutDialog from "./components/ConfirmCheckoutDialog";
 import DiffPanel from "./components/DiffPanel";
-import GraphView from "./components/GraphView";
+import GraphView, { DEFAULT_LANE_WIDTH } from "./components/GraphView";
 import ReflogDialog from "./components/ReflogDialog";
 import RepoSwitcher from "./components/RepoSwitcher";
 import ResizableDivider from "./components/ResizableDivider";
@@ -38,6 +38,9 @@ const DIFF_WIDTH_KEY = "minigit2:diffPaneWidth";
 const MIN_DIFF_WIDTH = 240;
 const MAX_DIFF_WIDTH = 800;
 const DEFAULT_DIFF_WIDTH = 420;
+const LANE_WIDTH_KEY = "minigit2:graphLaneWidth";
+const MIN_LANE_WIDTH = 40;
+const MAX_LANE_WIDTH = 400;
 const AUTO_REFRESH_INTERVAL_MS = 30_000;
 
 export default function App() {
@@ -73,13 +76,25 @@ export default function App() {
     const stored = Number(localStorage.getItem(DIFF_WIDTH_KEY));
     return stored >= MIN_DIFF_WIDTH && stored <= MAX_DIFF_WIDTH ? stored : DEFAULT_DIFF_WIDTH;
   });
+  const [graphLaneWidth, setGraphLaneWidth] = useState<number>(() => {
+    const stored = Number(localStorage.getItem(LANE_WIDTH_KEY));
+    return stored >= MIN_LANE_WIDTH && stored <= MAX_LANE_WIDTH ? stored : DEFAULT_LANE_WIDTH;
+  });
 
   useEffect(() => {
     localStorage.setItem(DIFF_WIDTH_KEY, String(diffPaneWidth));
   }, [diffPaneWidth]);
 
+  useEffect(() => {
+    localStorage.setItem(LANE_WIDTH_KEY, String(graphLaneWidth));
+  }, [graphLaneWidth]);
+
   function handleDiffPaneResize(deltaX: number) {
     setDiffPaneWidth((w) => Math.min(MAX_DIFF_WIDTH, Math.max(MIN_DIFF_WIDTH, w - deltaX)));
+  }
+
+  function handleGraphLaneResize(deltaX: number) {
+    setGraphLaneWidth((w) => Math.min(MAX_LANE_WIDTH, Math.max(MIN_LANE_WIDTH, w + deltaX)));
   }
 
   const refreshRepos = useCallback(async () => {
@@ -603,6 +618,8 @@ export default function App() {
                       compareHash={compareHash}
                       matchHashes={matchHashes}
                       theme={theme}
+                      laneWidth={graphLaneWidth}
+                      onLaneResize={handleGraphLaneResize}
                       onSelect={selectCommit}
                       onCompareClick={handleCompareClick}
                       onCheckoutRef={requestCheckout}
