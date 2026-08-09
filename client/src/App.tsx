@@ -30,7 +30,7 @@ import {
   RefreshIcon,
   SunIcon,
 } from "./design-system/icons";
-import { ToastHost } from "./design-system/toast";
+import { ToastHost, showToast } from "./design-system/toast";
 import { useTheme } from "./design-system/useTheme";
 
 const ACTIVE_REPO_KEY = "minigit2:activeRepoId";
@@ -68,6 +68,7 @@ export default function App() {
   const [stashOpen, setStashOpen] = useState(false);
   const [reflogOpen, setReflogOpen] = useState(false);
   const [branchesOpen, setBranchesOpen] = useState(false);
+  const [focusedRef, setFocusedRef] = useState<{ hash: string; name: string } | null>(null);
   const [diffPaneWidth, setDiffPaneWidth] = useState<number>(() => {
     const stored = Number(localStorage.getItem(DIFF_WIDTH_KEY));
     return stored >= MIN_DIFF_WIDTH && stored <= MAX_DIFF_WIDTH ? stored : DEFAULT_DIFF_WIDTH;
@@ -188,6 +189,7 @@ export default function App() {
     setSearchCursor(-1);
     setShowLocalDiff(false);
     setLocalDiff(null);
+    setFocusedRef(null);
     if (!activeRepoId) {
       setGraph(null);
       setStatus(null);
@@ -325,6 +327,46 @@ export default function App() {
     [matchingNodes, searchQuery],
   );
 
+  // Same "dim, don't remove" reasoning as search: recomputing lanes/edges for a subgraph would
+  // require server-side layout work, so focusing a branch just walks `parents` client-side from
+  // its head hash (already loaded, no extra request) to find its ancestor set.
+  const focusHashes = useMemo(() => {
+    if (!focusedRef || !graph) return null;
+    const byHash = new Map(graph.nodes.map((n) => [n.hash, n]));
+    if (!byHash.has(focusedRef.hash)) return null;
+    const visited = new Set<string>();
+    const stack = [focusedRef.hash];
+    while (stack.length > 0) {
+      const hash = stack.pop()!;
+      if (visited.has(hash)) continue;
+      visited.add(hash);
+      const node = byHash.get(hash);
+      if (!node) continue;
+      for (const parent of node.parents) {
+        if (!visited.has(parent)) stack.push(parent);
+      }
+    }
+    return visited;
+  }, [graph, focusedRef]);
+
+  function focusRef(hash: string, name: string) {
+    setFocusedRef({ hash, name });
+  }
+
+  function clearFocus() {
+    setFocusedRef(null);
+  }
+
+  // If the focused branch's head commit falls out of the graph (deleted, or rebased away)
+  // between refreshes, focusHashes silently becomes null — clear the banner too instead of
+  // leaving it claiming a focus that no longer filters anything.
+  useEffect(() => {
+    if (focusedRef && graph && !graph.nodes.some((n) => n.hash === focusedRef.hash)) {
+      showToast(`Focused branch "${focusedRef.name}" was no longer found — focus cleared`);
+      setFocusedRef(null);
+    }
+  }, [graph, focusedRef]);
+
   function handleSearchQueryChange(q: string) {
     setSearchQuery(q);
     setSearchCursor(-1);
@@ -458,6 +500,14 @@ export default function App() {
                   </button>
                 </div>
               )}
+              {focusedRef && (
+                <div className="focused-branch-banner">
+                  <span>Focused: {focusedRef.name}</span>
+                  <button type="button" className="btn btn-ghost" onClick={clearFocus}>
+                    ✕
+                  </button>
+                </div>
+              )}
               {graphError && <p className="error">{graphError}</p>}
               {checkoutError && <p className="error">{checkoutError}</p>}
               <div className="workspace">
@@ -482,6 +532,7 @@ export default function App() {
                       selectedHash={selectedHash}
                       compareHash={compareHash}
                       matchHashes={matchHashes}
+                      focusHashes={focusHashes}
                       theme={theme}
                       onSelect={selectCommit}
                       onCompareClick={handleCompareClick}
@@ -526,6 +577,7 @@ export default function App() {
           headRefreshKey={status ? `${status.branch ?? ""}:${status.headCommit ?? ""}` : null}
           onClose={() => setBranchesOpen(false)}
           onCheckoutRef={requestCheckout}
+          onFocusRef={focusRef}
         />
       )}
       {pendingCheckoutRef && (

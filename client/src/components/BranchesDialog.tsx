@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { BranchInfo, BranchesResponse } from "@minigit2/shared";
 import { api } from "../api/client";
+import { TargetIcon } from "../design-system/icons";
 import CopyableText from "./CopyableText";
 
 interface Props {
@@ -10,9 +11,10 @@ interface Props {
   headRefreshKey: string | null;
   onClose: () => void;
   onCheckoutRef: (ref: string) => void;
+  onFocusRef: (hash: string, name: string) => void;
 }
 
-export default function BranchesDialog({ repoId, headRefreshKey, onClose, onCheckoutRef }: Props) {
+export default function BranchesDialog({ repoId, headRefreshKey, onClose, onCheckoutRef, onFocusRef }: Props) {
   const [data, setData] = useState<BranchesResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,6 +38,7 @@ export default function BranchesDialog({ repoId, headRefreshKey, onClose, onChec
               branches={data.local}
               defaultBranch={data.defaultBranch}
               onCheckoutRef={onCheckoutRef}
+              onFocusRef={onFocusRef}
             />
             <BranchGroup
               title="Remote"
@@ -43,6 +46,7 @@ export default function BranchesDialog({ repoId, headRefreshKey, onClose, onChec
               defaultBranch={data.defaultBranch}
               qualifyDefault={(name) => name.endsWith(`/${data.defaultBranch}`)}
               onCheckoutRef={onCheckoutRef}
+              onFocusRef={onFocusRef}
             />
           </>
         )}
@@ -62,9 +66,10 @@ interface GroupProps {
   defaultBranch: string | null;
   qualifyDefault?: (name: string) => boolean;
   onCheckoutRef: (ref: string) => void;
+  onFocusRef: (hash: string, name: string) => void;
 }
 
-function BranchGroup({ title, branches, defaultBranch, qualifyDefault, onCheckoutRef }: GroupProps) {
+function BranchGroup({ title, branches, defaultBranch, qualifyDefault, onCheckoutRef, onFocusRef }: GroupProps) {
   const isDefault = qualifyDefault ?? ((name: string) => name === defaultBranch);
   return (
     <div className="branch-group">
@@ -96,6 +101,18 @@ function BranchGroup({ title, branches, defaultBranch, qualifyDefault, onCheckou
                   </span>
                 )}
               </span>
+              <button
+                type="button"
+                className="btn btn-ghost btn-icon entry-list-row-focus"
+                title="Focus this branch in the graph"
+                aria-label={`Focus ${b.name}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onFocusRef(b.hash, b.name);
+                }}
+              >
+                <TargetIcon />
+              </button>
             </li>
           ))}
         </ul>
