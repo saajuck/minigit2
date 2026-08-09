@@ -9,12 +9,21 @@ interface Props {
   /** Changes whenever HEAD moves (e.g. after a checkout) so the dialog can refetch and move
    * the "HEAD" tag — the branch list is otherwise only fetched once, on open. */
   headRefreshKey: string | null;
+  /** Names of the branches currently focused in the graph — toggles the focus button's active state. */
+  focusedNames: Set<string>;
   onClose: () => void;
   onCheckoutRef: (ref: string) => void;
-  onFocusRef: (hash: string, name: string) => void;
+  onToggleFocusRef: (hash: string, name: string) => void;
 }
 
-export default function BranchesDialog({ repoId, headRefreshKey, onClose, onCheckoutRef, onFocusRef }: Props) {
+export default function BranchesDialog({
+  repoId,
+  headRefreshKey,
+  focusedNames,
+  onClose,
+  onCheckoutRef,
+  onToggleFocusRef,
+}: Props) {
   const [data, setData] = useState<BranchesResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,16 +46,18 @@ export default function BranchesDialog({ repoId, headRefreshKey, onClose, onChec
               title="Local"
               branches={data.local}
               defaultBranch={data.defaultBranch}
+              focusedNames={focusedNames}
               onCheckoutRef={onCheckoutRef}
-              onFocusRef={onFocusRef}
+              onToggleFocusRef={onToggleFocusRef}
             />
             <BranchGroup
               title="Remote"
               branches={data.remote}
               defaultBranch={data.defaultBranch}
               qualifyDefault={(name) => name.endsWith(`/${data.defaultBranch}`)}
+              focusedNames={focusedNames}
               onCheckoutRef={onCheckoutRef}
-              onFocusRef={onFocusRef}
+              onToggleFocusRef={onToggleFocusRef}
             />
           </>
         )}
@@ -65,11 +76,20 @@ interface GroupProps {
   branches: BranchInfo[];
   defaultBranch: string | null;
   qualifyDefault?: (name: string) => boolean;
+  focusedNames: Set<string>;
   onCheckoutRef: (ref: string) => void;
-  onFocusRef: (hash: string, name: string) => void;
+  onToggleFocusRef: (hash: string, name: string) => void;
 }
 
-function BranchGroup({ title, branches, defaultBranch, qualifyDefault, onCheckoutRef, onFocusRef }: GroupProps) {
+function BranchGroup({
+  title,
+  branches,
+  defaultBranch,
+  qualifyDefault,
+  focusedNames,
+  onCheckoutRef,
+  onToggleFocusRef,
+}: GroupProps) {
   const isDefault = qualifyDefault ?? ((name: string) => name === defaultBranch);
   return (
     <div className="branch-group">
@@ -103,12 +123,13 @@ function BranchGroup({ title, branches, defaultBranch, qualifyDefault, onCheckou
               </span>
               <button
                 type="button"
-                className="btn btn-ghost btn-icon entry-list-row-focus"
-                title="Focus this branch in the graph"
+                className={`btn btn-ghost btn-icon entry-list-row-focus${focusedNames.has(b.name) ? " active" : ""}`}
+                title={focusedNames.has(b.name) ? `Stop focusing ${b.name}` : `Focus ${b.name} in the graph`}
                 aria-label={`Focus ${b.name}`}
+                aria-pressed={focusedNames.has(b.name)}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onFocusRef(b.hash, b.name);
+                  onToggleFocusRef(b.hash, b.name);
                 }}
               >
                 <TargetIcon />

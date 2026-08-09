@@ -220,12 +220,39 @@
 .focused-branch-banner {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   padding: 6px 12px;
   border: 1px solid var(--color-text);
   background: color-mix(in srgb, var(--color-text) 6%, transparent);
   font-size: 13px;
+}
+
+.focused-branch-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+}
+
+.focused-branch-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px 2px 8px;
+  border-radius: var(--radius-lg);
+  background: var(--color-accent);
+  color: var(--color-bg);
+  font-size: 12px;
+}
+
+.focused-branch-chip .btn-icon {
+  width: 18px;
+  height: 18px;
+  color: inherit;
+}
+
+.focused-branch-chip .btn-icon:hover {
+  background: color-mix(in srgb, var(--color-bg) 20%, transparent);
 }
 
 .error {
@@ -783,6 +810,16 @@
   flex-shrink: 0;
   width: 24px;
   height: 24px;
+  border-radius: var(--radius-md);
+}
+
+.entry-list-row-focus.active {
+  background: var(--color-accent);
+  color: var(--color-bg);
+}
+
+.entry-list-row-focus.active:hover {
+  background: color-mix(in srgb, var(--color-accent) 85%, var(--color-bg));
 }
 
 .entry-list-meta {

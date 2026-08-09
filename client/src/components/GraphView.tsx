@@ -15,8 +15,6 @@ interface Props {
   compareHash: string | null;
   /** Non-null while a search is active: hashes matching the query. Rows outside this set are dimmed. */
   matchHashes: Set<string> | null;
-  /** Non-null while a branch is focused: hashes that are ancestors of it. Rows outside this set are dimmed. */
-  focusHashes: Set<string> | null;
   theme: Theme;
   onSelect: (hash: string) => void;
   onCompareClick: (hash: string) => void;
@@ -29,7 +27,6 @@ export default function GraphView({
   selectedHash,
   compareHash,
   matchHashes,
-  focusHashes,
   theme,
   onSelect,
   onCompareClick,
@@ -108,12 +105,8 @@ export default function GraphView({
   const laneX = (lane: number) => PAD_X + lane * LANE_WIDTH;
   const rowY = (row: number) => ROW_HEIGHT / 2 + row * ROW_HEIGHT;
 
-  // A commit is dimmed if it fails an active search, or falls outside an active branch focus —
-  // either filter can be active independently, and both apply the same visual treatment.
   function isDimmed(hash: string): boolean {
-    const failsSearch = matchHashes !== null && !matchHashes.has(hash);
-    const failsFocus = focusHashes !== null && !focusHashes.has(hash);
-    return failsSearch || failsFocus;
+    return matchHashes !== null && !matchHashes.has(hash);
   }
 
   function ensureRowVisible(row: number) {
