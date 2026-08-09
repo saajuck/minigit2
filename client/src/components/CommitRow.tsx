@@ -10,6 +10,7 @@ interface Props {
   theme: Theme;
   selected: boolean;
   compared: boolean;
+  dimmed: boolean;
   onSelect: () => void;
   onCompareClick: () => void;
   onCheckoutRef: (ref: string) => void;
@@ -21,6 +22,7 @@ export default function CommitRow({
   theme,
   selected,
   compared,
+  dimmed,
   onSelect,
   onCompareClick,
   onCheckoutRef,
@@ -35,7 +37,7 @@ export default function CommitRow({
 
   return (
     <div
-      className={`commit-row${selected ? " selected" : ""}${compared ? " compared" : ""}`}
+      className={`commit-row${selected ? " selected" : ""}${compared ? " compared" : ""}${dimmed ? " dimmed" : ""}`}
       style={{ height }}
       onClick={handleClick}
       onDoubleClick={() => onCheckoutRef(node.hash)}
