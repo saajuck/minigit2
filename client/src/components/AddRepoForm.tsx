@@ -42,15 +42,15 @@ export default function AddRepoForm({ onAdd }: Props) {
           type="text"
           value={path}
           onChange={(e) => setPath(e.target.value)}
-          placeholder="/chemin/absolu/vers/un/repo"
+          placeholder="/absolute/path/to/a/repo"
           disabled={submitting}
         />
         <div className="add-repo-actions">
           <button type="submit" disabled={submitting}>
-            Ajouter
+            Add
           </button>
           <button type="button" onClick={() => setBrowsing(true)} disabled={submitting}>
-            Parcourir…
+            Browse…
           </button>
         </div>
         {error && <p className="error">{error}</p>}

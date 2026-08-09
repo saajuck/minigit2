@@ -9,7 +9,7 @@ interface Props {
 
 export default function RepoSwitcher({ repos, activeRepoId, onSelect, onRemove }: Props) {
   if (repos.length === 0) {
-    return <p className="muted">Aucun repo ajouté pour l&rsquo;instant.</p>;
+    return <p className="muted">No repos added yet.</p>;
   }
 
   return (
@@ -23,8 +23,8 @@ export default function RepoSwitcher({ repos, activeRepoId, onSelect, onRemove }
             type="button"
             className="remove"
             onClick={() => onRemove(repo.id)}
-            aria-label={`Retirer ${repo.name}`}
-            title="Retirer ce repo de la liste"
+            aria-label={`Remove ${repo.name}`}
+            title="Remove this repo from the list"
           >
             ×
           </button>

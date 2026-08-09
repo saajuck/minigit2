@@ -150,11 +150,16 @@ Liste des repos connus persistée hors de tout repo suivi, dans
 
 Staging/commit, push/pull/fetch, merge/rebase/cherry-pick/revert par
 drag-and-drop, résolution de conflits, stash, création/suppression/renommage
-de branche (checkout uniquement), auth/multi-utilisateur, watcher
-filesystem + auto-refresh live (bouton refresh manuel à la place),
-force/discard sur checkout, file picker natif (chemin tapé en V1),
-sous-modules, pagination/virtualisation pour très gros historiques,
-recherche/filtre de commits, blame, historique par fichier.
+de branche (checkout uniquement), auth/multi-utilisateur, watcher filesystem
+(l'auto-refresh est du polling toutes les 30s, pas des événements fs natifs),
+force/discard sur checkout, sous-modules, recherche/filtre de commits, blame,
+historique par fichier.
+
+Note : le file picker natif et la pagination/virtualisation pour gros
+historiques, initialement notés hors-scope V1 ci-dessus, ont finalement été
+implémentés (navigateur de dossiers server-side, virtualisation de la liste
+de commits) — voir les sections dédiées plus bas dans ce document et
+l'historique Git pour le détail.
 
 ## Ordre de build (phases indépendamment démontrables)
 

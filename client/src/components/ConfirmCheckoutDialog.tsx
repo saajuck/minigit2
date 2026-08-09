@@ -9,11 +9,11 @@ export default function ConfirmCheckoutDialog({ target, onConfirm, onCancel }: P
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <p>
-          Le working tree contient des modifications non commitées. Checkout <code>{target}</code> quand même&nbsp;?
+          The working tree has uncommitted changes. Checkout <code>{target}</code> anyway?
         </p>
         <div className="modal-actions">
           <button type="button" onClick={onCancel}>
-            Annuler
+            Cancel
           </button>
           <button type="button" className="danger" onClick={onConfirm}>
             Checkout
