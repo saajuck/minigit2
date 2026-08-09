@@ -43,10 +43,10 @@ export default function CommitRow({
       onDoubleClick={() => onCheckoutRef(node.hash)}
     >
       <CopyableText className="commit-hash" value={node.hash} display={node.hash.slice(0, 7)} />
-      <span className="commit-subject">{node.subject}</span>
       {node.refs.map((ref) => (
         <RefBadge key={`${ref.type}:${ref.name}`} decoration={ref} theme={theme} onCheckoutRef={onCheckoutRef} />
       ))}
+      <span className="commit-subject">{node.subject}</span>
       <img className="commit-avatar" src={node.authorAvatarUrl} alt="" loading="lazy" title={node.author} />
       <span className="commit-author">{node.author}</span>
       <span className="commit-date" title={node.date}>
