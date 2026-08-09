@@ -211,7 +211,7 @@ export default function GraphView({
           })}
         </svg>
       </div>
-      <ResizableDivider onResize={onLaneResize} />
+      <ResizableDivider onResize={onLaneResize} className="graph-lane-divider" />
       <div className="graph-rows" style={{ height: totalHeight }}>
         {visibleNodes.map((node) => (
           <div key={node.hash} className="graph-row-positioner" style={{ top: node.row * ROW_HEIGHT }}>

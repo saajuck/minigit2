@@ -479,6 +479,16 @@
     0 6px 0 var(--color-accent);
 }
 
+/* Inside .graph-view, align-self:stretch only stretches this to the *visible* pane height
+ * (the flex line's cross size resolves to the container's own definite height, not the
+ * height of its tall, scrolling siblings) — so undecorated, it sits parked at the top of the
+ * scrollable content and scrolls out of reach like anything else short. Pin it to the
+ * viewport instead, so it's always draggable regardless of vertical scroll position. */
+.graph-lane-divider {
+  position: sticky;
+  top: 0;
+}
+
 /* — diff pane — */
 .diff-pane {
   flex-shrink: 0;

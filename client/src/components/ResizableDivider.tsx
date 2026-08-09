@@ -2,9 +2,10 @@ import { useRef, type MouseEvent as ReactMouseEvent } from "react";
 
 interface Props {
   onResize: (deltaX: number) => void;
+  className?: string;
 }
 
-export default function ResizableDivider({ onResize }: Props) {
+export default function ResizableDivider({ onResize, className }: Props) {
   const draggingRef = useRef(false);
   const lastXRef = useRef(0);
 
@@ -29,5 +30,10 @@ export default function ResizableDivider({ onResize }: Props) {
     document.removeEventListener("mouseup", handleMouseUp);
   }
 
-  return <div className="resizable-divider" onMouseDown={handleMouseDown} />;
+  return (
+    <div
+      className={`resizable-divider${className ? ` ${className}` : ""}`}
+      onMouseDown={handleMouseDown}
+    />
+  );
 }
