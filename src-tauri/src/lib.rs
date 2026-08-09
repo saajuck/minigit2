@@ -1,26 +1,18 @@
-use std::net::TcpStream;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use tauri::{AppHandle, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 
-const SERVER_PORT: u16 = 4300;
 const SERVER_READY_TIMEOUT: Duration = Duration::from_secs(15);
 
 /// Holds the spawned server sidecar so it can be killed when the app exits — Tauri doesn't do
-/// this automatically, and a lingering Node process would otherwise keep the port occupied. Stays
-/// `None` if we found (and are reusing) another instance's already-running server instead of
-/// spawning our own — in that case exiting must not kill a server we don't own.
+/// this automatically, and a lingering Node process would otherwise keep its port occupied.
 struct ServerHandle(Mutex<Option<CommandChild>>);
 
-fn is_server_up() -> bool {
-    TcpStream::connect(("127.0.0.1", SERVER_PORT)).is_ok()
-}
-
-fn open_main_window(app_handle: &AppHandle) {
-    let url = format!("http://127.0.0.1:{SERVER_PORT}")
+fn open_main_window(app_handle: &AppHandle, port: u16) {
+    let url = format!("http://127.0.0.1:{port}")
         .parse()
         .expect("server URL is always valid");
     WebviewWindowBuilder::new(app_handle, "main", WebviewUrl::External(url))
@@ -30,12 +22,24 @@ fn open_main_window(app_handle: &AppHandle) {
         .expect("failed to create main window");
 }
 
+/// The sidecar is spawned with PORT=0 (OS-assigned) rather than a hardcoded port, so it can
+/// never collide with — and silently hijack — an unrelated process already using a fixed port
+/// (a developer's own `npm run dev`, another app entirely). It logs the real port once bound;
+/// pull it back out of that line instead of guessing one ourselves.
+fn parse_ready_port(line: &str) -> Option<u16> {
+    let line = line.trim();
+    if !line.contains("minigit2 server listening on") {
+        return None;
+    }
+    line.rsplit(':').next()?.parse().ok()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
         // Best-effort: relies on a session D-Bus, which desktop Linux always has but a minimal
-        // or sandboxed environment might not. The port check in `setup` below is the real
-        // safety net if this silently fails to dedupe.
+        // or sandboxed environment might not — in that case a relaunch just opens a second,
+        // independent window/server rather than crashing or hijacking anything.
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_focus();
@@ -52,14 +56,6 @@ pub fn run() {
                     .build(),
             )?;
 
-            // A previous instance (or an unrelated process) may already be serving this port —
-            // don't spawn a second server that would just crash on EADDRINUSE. Reuse it instead.
-            if is_server_up() {
-                eprintln!("[minigit2] a server is already running on port {SERVER_PORT}, reusing it");
-                open_main_window(&app.handle().clone());
-                return Ok(());
-            }
-
             let client_dist = app
                 .path()
                 .resolve("client-dist", tauri::path::BaseDirectory::Resource)
@@ -72,6 +68,7 @@ pub fn run() {
                 .sidecar("minigit2-server")
                 .expect("failed to prepare minigit2-server sidecar command")
                 .env("MINIGIT2_CLIENT_DIST", client_dist.to_string_lossy().to_string())
+                .env("PORT", "0")
                 .spawn()
                 .expect("failed to spawn minigit2-server sidecar");
             eprintln!("[minigit2] server sidecar spawned, pid {}", child.pid());
@@ -82,13 +79,21 @@ pub fn run() {
                 .expect("server handle mutex poisoned")
                 .replace(child);
 
-            // The shell plugin buffers stdout/stderr into this channel; draining it also
-            // gives us the server's logs for free when debugging a packaged build.
+            let ready_port: Arc<Mutex<Option<u16>>> = Arc::new(Mutex::new(None));
+
+            // The shell plugin buffers stdout/stderr into this channel; draining it also gives
+            // us the server's logs for free when debugging a packaged build, and lets us watch
+            // for the ready line carrying the actual (OS-assigned) bound port.
+            let ready_port_writer = ready_port.clone();
             tauri::async_runtime::spawn(async move {
                 while let Some(event) = rx.recv().await {
                     match event {
                         CommandEvent::Stdout(line) => {
-                            eprintln!("[server] {}", String::from_utf8_lossy(&line));
+                            let text = String::from_utf8_lossy(&line).into_owned();
+                            eprintln!("[server] {text}");
+                            if let Some(port) = parse_ready_port(&text) {
+                                *ready_port_writer.lock().expect("ready-port mutex poisoned") = Some(port);
+                            }
                         }
                         CommandEvent::Stderr(line) => {
                             eprintln!("[server:err] {}", String::from_utf8_lossy(&line));
@@ -108,8 +113,8 @@ pub fn run() {
             std::thread::spawn(move || {
                 let deadline = Instant::now() + SERVER_READY_TIMEOUT;
                 while Instant::now() < deadline {
-                    if is_server_up() {
-                        open_main_window(&app_handle);
+                    if let Some(port) = *ready_port.lock().expect("ready-port mutex poisoned") {
+                        open_main_window(&app_handle, port);
                         return;
                     }
                     std::thread::sleep(Duration::from_millis(150));
