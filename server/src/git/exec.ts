@@ -21,12 +21,18 @@ export class GitError extends Error {
 export interface RunGitOptions {
   /** Exit codes to treat as success rather than a GitError — e.g. `git diff --no-index` uses 1 to mean "differences found", not failure. */
   allowExitCodes?: number[];
+  /** Kills the process past this many ms — for commands that can hang on the network (e.g. `fetch`). */
+  timeoutMs?: number;
+  /** Merged on top of the inherited environment. */
+  env?: NodeJS.ProcessEnv;
 }
 
 export async function runGit(cwd: string, args: string[], options: RunGitOptions = {}): Promise<GitResult> {
   try {
     const { stdout, stderr } = await execFileAsync("git", ["-C", cwd, ...args], {
       maxBuffer: 1024 * 1024 * 64,
+      timeout: options.timeoutMs,
+      env: options.env ? { ...process.env, ...options.env } : undefined,
     });
     return { stdout, stderr };
   } catch (err) {
