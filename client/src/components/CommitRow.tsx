@@ -1,5 +1,6 @@
 import type { CommitNode } from "@minigit2/shared";
 import type { Theme } from "../design-system/palette";
+import CopyableText from "./CopyableText";
 import RefBadge from "./RefBadge";
 
 interface Props {
@@ -19,7 +20,7 @@ export default function CommitRow({ node, height, theme, selected, onSelect, onC
       onClick={onSelect}
       onDoubleClick={() => onCheckoutRef(node.hash)}
     >
-      <span className="commit-hash">{node.hash.slice(0, 7)}</span>
+      <CopyableText className="commit-hash" value={node.hash} display={node.hash.slice(0, 7)} />
       <span className="commit-subject">{node.subject}</span>
       {node.refs.map((ref) => (
         <RefBadge key={`${ref.type}:${ref.name}`} decoration={ref} theme={theme} onCheckoutRef={onCheckoutRef} />

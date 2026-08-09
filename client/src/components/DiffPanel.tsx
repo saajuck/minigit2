@@ -1,5 +1,6 @@
 import type { CommitNode, DiffResponse } from "@minigit2/shared";
 import type { Theme } from "../design-system/palette";
+import CopyableText from "./CopyableText";
 import FileDiff from "./FileDiff";
 
 interface Props {
@@ -26,7 +27,7 @@ export default function DiffPanel({ repoId, commit, diff, loading, error, theme 
   return (
     <div className="diff-panel">
       <div className="diff-meta">
-        <div className="diff-hash">{commit.hash.slice(0, 7)}</div>
+        <CopyableText className="diff-hash" value={commit.hash} display={commit.hash.slice(0, 7)} />
         <div className="diff-subject">{commit.subject}</div>
         <div className="diff-submeta">
           {commit.author} · {formatDate(commit.date)} · parents:{" "}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { CommitNode, GraphEdge } from "@minigit2/shared";
 import { getPalette, type Theme } from "../design-system/palette";
 import CommitRow from "./CommitRow";
@@ -69,11 +69,41 @@ export default function GraphView({ nodes, edges, selectedHash, theme, onSelect,
   const laneX = (lane: number) => PAD_X + lane * LANE_WIDTH;
   const rowY = (row: number) => ROW_HEIGHT / 2 + row * ROW_HEIGHT;
 
+  function ensureRowVisible(row: number) {
+    const el = containerRef.current;
+    if (!el) return;
+    const top = row * ROW_HEIGHT;
+    const bottom = top + ROW_HEIGHT;
+    if (top < el.scrollTop) {
+      el.scrollTop = top;
+    } else if (bottom > el.scrollTop + el.clientHeight) {
+      el.scrollTop = bottom - el.clientHeight;
+    }
+  }
+
+  function handleKeyDown(e: KeyboardEvent) {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const currentIndex = selectedHash ? nodes.findIndex((n) => n.hash === selectedHash) : -1;
+      const nextIndex =
+        e.key === "ArrowDown" ? Math.min(nodes.length - 1, currentIndex + 1) : Math.max(0, currentIndex - 1);
+      const nextNode = nodes[nextIndex];
+      if (nextNode) {
+        onSelect(nextNode.hash);
+        ensureRowVisible(nextIndex);
+      }
+    } else if (e.key === "Enter" && selectedHash) {
+      onCheckoutRef(selectedHash);
+    }
+  }
+
   return (
     <div
       className="blueprint graph-view"
       ref={containerRef}
+      tabIndex={0}
       onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+      onKeyDown={handleKeyDown}
     >
       <i className="corner tl" />
       <i className="corner tr" />
