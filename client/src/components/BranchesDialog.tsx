@@ -5,11 +5,14 @@ import CopyableText from "./CopyableText";
 
 interface Props {
   repoId: string;
+  /** Changes whenever HEAD moves (e.g. after a checkout) so the dialog can refetch and move
+   * the "HEAD" tag — the branch list is otherwise only fetched once, on open. */
+  headRefreshKey: string | null;
   onClose: () => void;
   onCheckoutRef: (ref: string) => void;
 }
 
-export default function BranchesDialog({ repoId, onClose, onCheckoutRef }: Props) {
+export default function BranchesDialog({ repoId, headRefreshKey, onClose, onCheckoutRef }: Props) {
   const [data, setData] = useState<BranchesResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,7 +21,7 @@ export default function BranchesDialog({ repoId, onClose, onCheckoutRef }: Props
       .getBranches(repoId)
       .then(setData)
       .catch((err) => setError((err as Error).message));
-  }, [repoId]);
+  }, [repoId, headRefreshKey]);
 
   return (
     <div className="dialog-backdrop" onClick={onClose}>

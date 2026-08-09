@@ -8,9 +8,10 @@ without editing it.
 - **Multi-repo**: add a repo by absolute path or via a built-in folder
   browser, switch between added repos.
 - **Commit graph**: local branches, tags, and remote-tracking branches
-  (`origin/*`), with ref badges (including HEAD, detached or not).
-  Virtualized list: only visible rows are mounted, scales to large
-  histories.
+  (`origin/*`), with ref badges (including HEAD, detached or not). The
+  checked-out branch's lane is drawn in a more saturated color so it stands
+  out from the rest of the history. Virtualized list: only visible rows are
+  mounted, scales to large histories.
 - **Per-commit diff**: click a commit to see its changed files; each file
   expands and loads its patch on demand. Resizable panel (drag the
   divider).
@@ -42,6 +43,9 @@ without editing it.
   (staged, unstaged, and untracked files) in the same diff panel used for
   commits; read-only lists of stashed changes and the reflog, each with
   copyable hashes. Click a stash entry to expand its own file diff.
+- **Error toasts**: any failed git command on the server surfaces as a
+  dismissible toast, in addition to whatever inline state it also updates —
+  errors from background refreshes are no longer silent.
 
 > This list is updated as major features land, not for implementation
 > details — see the Git history for that.
