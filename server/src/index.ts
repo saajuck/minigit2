@@ -14,7 +14,14 @@ import { reposRouter } from "./routes/repos";
 import { stashRouter } from "./routes/stash";
 import { statusRouter } from "./routes/status";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+/** Deferred so a bundled/packaged build (no real source file on disk to resolve `import.meta.url`
+ * against) can skip straight to the env var instead of throwing before the check even runs. */
+function resolveClientDist(): string {
+  if (process.env.MINIGIT2_CLIENT_DIST) return process.env.MINIGIT2_CLIENT_DIST;
+  const dir = path.dirname(fileURLToPath(import.meta.url));
+  return path.resolve(dir, "../../client/dist");
+}
+
 const PORT = Number(process.env.PORT ?? 4300);
 
 const app = express();
@@ -36,7 +43,7 @@ app.use("/api/repos/:id/reflog", reflogRouter);
 app.use("/api/repos/:id/local-diff", localDiffRouter);
 app.use("/api/repos/:id/branches", branchesRouter);
 
-const clientDist = path.resolve(__dirname, "../../client/dist");
+const clientDist = resolveClientDist();
 if (existsSync(clientDist)) {
   app.use(express.static(clientDist));
   app.get("*", (_req, res) => {
