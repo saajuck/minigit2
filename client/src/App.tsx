@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CompareResponse, DiffResponse, GraphResponse, RepoSummary, StatusResponse } from "@minigit2/shared";
 import { ApiRequestError, api } from "./api/client";
 import AddRepoDialog from "./components/AddRepoDialog";
+import CommitSearch from "./components/CommitSearch";
 import ConfirmCheckoutDialog from "./components/ConfirmCheckoutDialog";
 import DiffPanel from "./components/DiffPanel";
 import GraphView from "./components/GraphView";
@@ -39,6 +40,8 @@ export default function App() {
   const [pendingCheckoutRef, setPendingCheckoutRef] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [newCommitsCount, setNewCommitsCount] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchCursor, setSearchCursor] = useState(-1);
   const [diffPaneWidth, setDiffPaneWidth] = useState<number>(() => {
     const stored = Number(localStorage.getItem(DIFF_WIDTH_KEY));
     return stored >= MIN_DIFF_WIDTH && stored <= MAX_DIFF_WIDTH ? stored : DEFAULT_DIFF_WIDTH;
@@ -139,6 +142,8 @@ export default function App() {
     setCheckoutError(null);
     setPendingCheckoutRef(null);
     setNewCommitsCount(0);
+    setSearchQuery("");
+    setSearchCursor(-1);
     if (!activeRepoId) {
       setGraph(null);
       setStatus(null);
@@ -237,6 +242,44 @@ export default function App() {
 
   const selectedCommit = graph?.nodes.find((n) => n.hash === selectedHash) ?? null;
 
+  // Client-side only — the graph is already fully loaded, so filtering it never costs a
+  // network round trip. Matches don't remove rows from the graph (that would require
+  // recomputing lanes/edges for an arbitrary subgraph); they just get highlighted, with
+  // Enter/prev-next jumping the selection (and virtualized scroll) to each one in turn.
+  const matchingNodes = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q || !graph) return [];
+    return graph.nodes.filter(
+      (n) => n.subject.toLowerCase().includes(q) || n.author.toLowerCase().includes(q) || n.hash.includes(q),
+    );
+  }, [graph, searchQuery]);
+  const matchHashes = useMemo(
+    () => (searchQuery.trim() ? new Set(matchingNodes.map((n) => n.hash)) : null),
+    [matchingNodes, searchQuery],
+  );
+
+  function handleSearchQueryChange(q: string) {
+    setSearchQuery(q);
+    setSearchCursor(-1);
+  }
+
+  function jumpToMatch(index: number) {
+    const node = matchingNodes[index];
+    if (!node) return;
+    setSearchCursor(index);
+    selectCommit(node.hash);
+  }
+
+  function handleSearchNext() {
+    if (matchingNodes.length === 0) return;
+    jumpToMatch((searchCursor + 1) % matchingNodes.length);
+  }
+
+  function handleSearchPrev() {
+    if (matchingNodes.length === 0) return;
+    jumpToMatch((searchCursor - 1 + matchingNodes.length) % matchingNodes.length);
+  }
+
   return (
     <div data-theme={theme} className="app-root">
       <div className="nav">
@@ -311,7 +354,18 @@ export default function App() {
               {checkoutError && <p className="error">{checkoutError}</p>}
               <div className="workspace">
                 <div className="graph-pane">
-                  <h6>Commit graph</h6>
+                  <div className="graph-pane-header">
+                    <h6>Commit graph</h6>
+                    {graph && graph.nodes.length > 0 && (
+                      <CommitSearch
+                        query={searchQuery}
+                        onQueryChange={handleSearchQueryChange}
+                        matchCount={matchingNodes.length}
+                        onNext={handleSearchNext}
+                        onPrev={handleSearchPrev}
+                      />
+                    )}
+                  </div>
                   {graph ? (
                     <GraphView
                       key={activeRepoId}
@@ -319,6 +373,7 @@ export default function App() {
                       edges={graph.edges}
                       selectedHash={selectedHash}
                       compareHash={compareHash}
+                      matchHashes={matchHashes}
                       theme={theme}
                       onSelect={selectCommit}
                       onCompareClick={handleCompareClick}

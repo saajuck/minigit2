@@ -238,6 +238,36 @@
   color: var(--color-accent);
 }
 
+.graph-pane-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.commit-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.commit-search .input {
+  width: 260px;
+  min-height: 28px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.commit-search-count {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.commit-search .btn-icon {
+  width: 26px;
+  height: 26px;
+}
+
 .graph-view {
   display: flex;
   align-items: flex-start;
@@ -277,6 +307,10 @@
 .commit-row.compared {
   outline: 1px dashed var(--color-accent);
   outline-offset: -1px;
+}
+
+.commit-row.dimmed {
+  opacity: 0.3;
 }
 
 .commit-hash {

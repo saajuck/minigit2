@@ -27,6 +27,9 @@ without editing it.
   selected one (not just parent vs child).
 - **Keyboard**: Up/Down to move the graph selection, Enter to check it out.
   Click a hash or file path to copy it.
+- **Search**: filter the graph by commit message, author, or hash — matches
+  highlight in place (no re-fetch, stays fast on large histories), Enter/↑↓
+  jump the selection between matches.
 - **Design**: reskinned on the Industry design system (blueprint/wireframe
   aesthetic, qualitative lane palette), with a light/dark theme toggle
   persisted per browser. Sidebar repo cards show each repo's own branch and

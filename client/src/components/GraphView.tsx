@@ -13,6 +13,8 @@ interface Props {
   edges: GraphEdge[];
   selectedHash: string | null;
   compareHash: string | null;
+  /** Non-null while a search is active: hashes matching the query. Rows outside this set are dimmed. */
+  matchHashes: Set<string> | null;
   theme: Theme;
   onSelect: (hash: string) => void;
   onCompareClick: (hash: string) => void;
@@ -24,6 +26,7 @@ export default function GraphView({
   edges,
   selectedHash,
   compareHash,
+  matchHashes,
   theme,
   onSelect,
   onCompareClick,
@@ -43,6 +46,22 @@ export default function GraphView({
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  // Keep the selected row in view regardless of what selected it (click, arrow keys, or
+  // jumping to a search match) — a single place responsible for "scroll it into view".
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || !selectedHash) return;
+    const node = nodes.find((n) => n.hash === selectedHash);
+    if (!node) return;
+    const top = node.row * ROW_HEIGHT;
+    const bottom = top + ROW_HEIGHT;
+    if (top < el.scrollTop) {
+      el.scrollTop = top;
+    } else if (bottom > el.scrollTop + el.clientHeight) {
+      el.scrollTop = bottom - el.clientHeight;
+    }
+  }, [selectedHash, nodes]);
 
   if (nodes.length === 0) {
     return (
@@ -149,6 +168,7 @@ export default function GraphView({
           const isHead = node.refs.some((r) => r.isHead);
           const selected = node.hash === selectedHash;
           const compared = node.hash === compareHash;
+          const dimmed = matchHashes !== null && !matchHashes.has(node.hash);
           const color = laneColor(node.lane);
           return (
             <circle
@@ -160,6 +180,7 @@ export default function GraphView({
               stroke={color}
               strokeWidth={selected || compared ? 3 : 2}
               strokeDasharray={compared ? "3 2" : undefined}
+              opacity={dimmed ? 0.25 : 1}
             />
           );
         })}
@@ -173,6 +194,7 @@ export default function GraphView({
               theme={theme}
               selected={node.hash === selectedHash}
               compared={node.hash === compareHash}
+              dimmed={matchHashes !== null && !matchHashes.has(node.hash)}
               onSelect={() => onSelect(node.hash)}
               onCompareClick={() => onCompareClick(node.hash)}
               onCheckoutRef={onCheckoutRef}
