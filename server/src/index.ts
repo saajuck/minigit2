@@ -53,6 +53,10 @@ if (existsSync(clientDist)) {
   });
 }
 
-app.listen(PORT, "127.0.0.1", () => {
-  console.log(`minigit2 server listening on http://127.0.0.1:${PORT}`);
+const server = app.listen(PORT, "127.0.0.1", () => {
+  const address = server.address();
+  // When PORT=0 (the packaged Tauri app's sidecar), the OS picks the actual port — log that
+  // real value, not the literal 0, since the Tauri shell parses this line to find it.
+  const actualPort = typeof address === "object" && address !== null ? address.port : PORT;
+  console.log(`minigit2 server listening on http://127.0.0.1:${actualPort}`);
 });
