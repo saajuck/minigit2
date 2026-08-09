@@ -8,8 +8,9 @@ on:
     inputs:
       version:
         description: >-
-          Tag to create and publish a release for (e.g. v0.1.0). Leave empty to just build and
-          upload the AppImage as a workflow artifact, without creating a release.
+          Override the release tag (e.g. v0.2.0-hotfix). Leave empty to use "v" + the version
+          from package.json — the normal way to cut a release: bump package.json, merge, then
+          run this workflow.
         required: false
 
 jobs:
@@ -64,13 +65,26 @@ jobs:
           name: minigit2-appimage
           path: src-tauri/target/release/bundle/appimage/*.AppImage
 
+      # A real tag push already names itself; a manual dispatch uses its own override input if
+      # given, otherwise "v" + package.json's version — package.json is the single source of
+      # truth for the app's version (tauri.conf.json reads it from the same file at build time).
+      - name: Determine release tag
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          elif [[ -n "${{ github.event.inputs.version }}" ]]; then
+            echo "tag=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=v$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Attach AppImage to release
-        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.version != ''
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
-          # On a tag push, github.ref_name is already the tag (e.g. "v0.1.0"). On a manual
-          # dispatch with a version input, this creates that tag (pointing at the triggering
-          # commit) as part of creating the release — the runner's own token can do this even
-          # when a contributor's own git credentials aren't allowed to push tags directly.
-          tag_name: ${{ github.event.inputs.version || github.ref_name }}
+          # This creates the tag (pointing at the triggering commit) as part of creating the
+          # release when it doesn't already exist — the runner's own token can do this even when
+          # a contributor's own git credentials aren't allowed to push tags directly.
+          tag_name: ${{ steps.version.outputs.tag }}
           files: src-tauri/target/release/bundle/appimage/*.AppImage

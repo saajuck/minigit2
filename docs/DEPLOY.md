@@ -60,8 +60,24 @@ npm run build                        # builds server + client
 npx tauri build
 ```
 
-The AppImage is written to `src-tauri/target/release/bundle/appimage/`.
+The AppImage is written to `src-tauri/target/release/bundle/appimage/`, named after the app's
+version (e.g. `minigit2_0.1.0_amd64.AppImage`) — see "Cutting a release" below for where that
+version comes from.
 
-The `.github/workflows/release.yml` workflow does exactly this on a clean `ubuntu-latest`
-runner and attaches the result to a GitHub Release whenever a tag matching `v*` is pushed (or
-can be run manually via "Run workflow" for a one-off build without publishing a release).
+## Cutting a release
+
+The version lives in one place: the root `package.json`'s `version` field.
+`src-tauri/tauri.conf.json` reads it from there at build time (Tauri supports pointing `version`
+at a `package.json` path instead of duplicating the number), so it never needs to be kept in
+sync by hand.
+
+1. Bump `version` in `package.json`, commit, merge to `master` as usual.
+2. Go to **Actions → Release → Run workflow** on `master` and run it with no input. It builds
+   the AppImage and publishes it as a GitHub Release tagged `v<version>` — the tag doesn't need
+   to exist beforehand, the workflow creates it.
+
+Pushing a real git tag matching `v*` also works and takes priority if present (`git tag v0.2.0
+&& git push origin v0.2.0`) — useful if your own git credentials are allowed to push tags to
+this repo. The `version` input on `workflow_dispatch` is only for overriding the tag on a
+one-off build (e.g. a hotfix release without bumping `package.json`); leave it empty for the
+normal flow above.
