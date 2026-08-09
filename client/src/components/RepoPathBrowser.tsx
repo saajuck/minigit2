@@ -38,7 +38,7 @@ export default function RepoPathBrowser({ onChoose, onClose }: Props) {
           {parent !== null && (
             <li>
               <button type="button" onClick={() => load(parent)}>
-                .. (dossier parent)
+                .. (parent folder)
               </button>
             </li>
           )}
@@ -52,10 +52,10 @@ export default function RepoPathBrowser({ onChoose, onClose }: Props) {
         </ul>
         <div className="modal-actions">
           <button type="button" onClick={onClose}>
-            Annuler
+            Cancel
           </button>
           <button type="button" className="primary" disabled={!current} onClick={() => current && onChoose(current)}>
-            Choisir ce dossier
+            Choose this folder
           </button>
         </div>
       </div>

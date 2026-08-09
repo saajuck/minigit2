@@ -43,7 +43,7 @@ export default function FileDiff({ repoId, hash, file }: Props) {
       </button>
       {open && (
         <>
-          {loading && <p className="muted">Chargement…</p>}
+          {loading && <p className="muted">Loading…</p>}
           {error && <p className="error">{error}</p>}
           {patch !== null && (
             <pre className="patch">

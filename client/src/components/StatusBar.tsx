@@ -10,14 +10,13 @@ export default function StatusBar({ status }: Props) {
   return (
     <div className="status-bar">
       {status.detached ? (
-        <span className="branch detached">HEAD détaché @ {status.headCommit?.slice(0, 7) ?? "?"}</span>
+        <span className="branch detached">detached HEAD @ {status.headCommit?.slice(0, 7) ?? "?"}</span>
       ) : (
-        <span className="branch">{status.branch ?? "(pas encore de commit)"}</span>
+        <span className="branch">{status.branch ?? "(no commits yet)"}</span>
       )}
       {status.dirty && (
         <span className="dirty">
-          modifications non commitées ({status.staged} staged, {status.unstaged} unstaged, {status.untracked}{" "}
-          untracked)
+          uncommitted changes ({status.staged} staged, {status.unstaged} unstaged, {status.untracked} untracked)
         </span>
       )}
     </div>

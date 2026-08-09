@@ -14,6 +14,7 @@ const DIFF_WIDTH_KEY = "minigit2:diffPaneWidth";
 const MIN_DIFF_WIDTH = 240;
 const MAX_DIFF_WIDTH = 800;
 const DEFAULT_DIFF_WIDTH = 420;
+const AUTO_REFRESH_INTERVAL_MS = 30_000;
 
 export default function App() {
   const [repos, setRepos] = useState<RepoInfo[]>([]);
@@ -119,6 +120,15 @@ export default function App() {
   }, [activeRepoId, refreshGraph, refreshStatus]);
 
   useEffect(() => {
+    if (!activeRepoId) return;
+    const interval = setInterval(() => {
+      refreshGraph(activeRepoId);
+      refreshStatus(activeRepoId);
+    }, AUTO_REFRESH_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [activeRepoId, refreshGraph, refreshStatus]);
+
+  useEffect(() => {
     if (!activeRepoId || !selectedHash) {
       setDiff(null);
       return;
@@ -195,9 +205,9 @@ export default function App() {
                   refreshStatus(activeRepoId!);
                 }}
                 disabled={graphLoading}
-                title="Recharger le graphe et le statut (pas de rafraîchissement automatique)"
+                title="Reload the graph and status now (also auto-refreshes every 30s)"
               >
-                {graphLoading ? "Rafraîchissement…" : "Rafraîchir"}
+                {graphLoading ? "Refreshing…" : "Refresh"}
               </button>
             </div>
             <StatusBar status={activeStatus} />
@@ -216,7 +226,7 @@ export default function App() {
                     onCheckoutBranch={requestCheckout}
                   />
                 ) : (
-                  graphLoading && <p className="muted">Chargement du graphe…</p>
+                  graphLoading && <p className="muted">Loading graph…</p>
                 )}
               </div>
               <ResizableDivider onResize={handleDiffPaneResize} />
@@ -226,7 +236,7 @@ export default function App() {
             </div>
           </>
         ) : (
-          <p className="muted">Sélectionne ou ajoute un repo pour commencer.</p>
+          <p className="muted">Select or add a repo to get started.</p>
         )}
       </main>
       {pendingCheckoutRef && (

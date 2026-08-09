@@ -40,7 +40,7 @@ export default function GraphView({
   }, []);
 
   if (nodes.length === 0) {
-    return <p className="muted">Aucun commit dans ce repo.</p>;
+    return <p className="muted">No commits in this repo.</p>;
   }
 
   const maxLane = nodes.reduce((max, n) => Math.max(max, n.lane), 0);

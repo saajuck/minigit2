@@ -9,10 +9,10 @@ interface Props {
 }
 
 export default function DiffPanel({ repoId, diff, loading, error }: Props) {
-  if (loading) return <p className="muted">Chargement du diff…</p>;
+  if (loading) return <p className="muted">Loading diff…</p>;
   if (error) return <p className="error">{error}</p>;
-  if (!diff || !repoId) return <p className="muted">Sélectionne un commit pour voir son diff.</p>;
-  if (diff.files.length === 0) return <p className="muted">Aucun changement de fichier.</p>;
+  if (!diff || !repoId) return <p className="muted">Select a commit to see its diff.</p>;
+  if (diff.files.length === 0) return <p className="muted">No file changes.</p>;
 
   return (
     <div className="diff-panel">
