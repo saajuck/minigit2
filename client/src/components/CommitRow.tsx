@@ -47,6 +47,7 @@ export default function CommitRow({
       {node.refs.map((ref) => (
         <RefBadge key={`${ref.type}:${ref.name}`} decoration={ref} theme={theme} onCheckoutRef={onCheckoutRef} />
       ))}
+      <img className="commit-avatar" src={node.authorAvatarUrl} alt="" loading="lazy" title={node.author} />
       <span className="commit-author">{node.author}</span>
       <span className="commit-date" title={node.date}>
         {formatDate(node.date)}

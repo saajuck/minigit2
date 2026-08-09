@@ -37,6 +37,7 @@ export interface CommitNode {
   color: string;
   author: string;
   authorEmail: string;
+  authorAvatarUrl: string;
   date: string;
   subject: string;
   refs: RefDecoration[];
