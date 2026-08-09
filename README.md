@@ -20,6 +20,10 @@ without editing it.
   force/discard).
 - **Status**: bar showing current branch / detached HEAD / working tree
   dirty state, manual refresh button plus automatic refresh every 30s.
+- **Design**: reskinned on the Industry design system (blueprint/wireframe
+  aesthetic, qualitative lane palette), with a light/dark theme toggle
+  persisted per browser. Sidebar repo cards show each repo's own branch and
+  dirty state at a glance.
 
 > This list is updated as major features land, not for implementation
 > details — see the Git history for that.

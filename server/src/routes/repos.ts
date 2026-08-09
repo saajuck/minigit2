@@ -1,11 +1,23 @@
 import { Router } from "express";
+import type { RepoInfo, RepoSummary } from "@minigit2/shared";
 import { assertValidRepoPath, RepoValidationError } from "../git/repoValidation";
+import { getRepoStatus } from "../git/status";
 import { addRepo, findRepoByPath, listRepos, removeRepo } from "../store/repoStore";
 
 export const reposRouter = Router();
 
-reposRouter.get("/", (_req, res) => {
-  res.json({ repos: listRepos() });
+async function toRepoSummary(repo: RepoInfo): Promise<RepoSummary> {
+  try {
+    const status = await getRepoStatus(repo.path);
+    return { ...repo, branch: status.branch, detached: status.detached, dirty: status.dirty };
+  } catch {
+    return { ...repo, branch: null, detached: false, dirty: false };
+  }
+}
+
+reposRouter.get("/", async (_req, res) => {
+  const repos = await Promise.all(listRepos().map(toRepoSummary));
+  res.json({ repos });
 });
 
 reposRouter.post("/", async (req, res) => {
@@ -22,7 +34,7 @@ reposRouter.post("/", async (req, res) => {
       return;
     }
     const repo = addRepo(absPath);
-    res.status(201).json({ repo });
+    res.status(201).json({ repo: await toRepoSummary(repo) });
   } catch (err) {
     if (err instanceof RepoValidationError) {
       const status = err.code === "not_a_git_repo" ? 422 : 400;
