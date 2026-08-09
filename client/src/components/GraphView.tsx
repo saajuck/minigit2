@@ -7,6 +7,11 @@ const ROW_HEIGHT = 34;
 const LANE_WIDTH = 22;
 const PAD_X = 18;
 const OVERSCAN_ROWS = 8;
+// Cap how much horizontal space the lane area can claim, in lane-widths — independent of
+// how many concurrent branches the repo actually has. Beyond this, the SVG scrolls within
+// its own strip instead of pushing .graph-rows (the commit text) further and further right.
+const VISIBLE_LANES = 8;
+const MAX_GRAPH_WIDTH = PAD_X + VISIBLE_LANES * LANE_WIDTH;
 
 interface Props {
   nodes: CommitNode[];
@@ -149,53 +154,55 @@ export default function GraphView({
       <i className="corner tr" />
       <i className="corner bl" />
       <i className="corner br" />
-      <svg width={graphWidth} height={totalHeight} className="graph-svg">
-        {visibleEdges.map((edge) => {
-          const from = rowByHash.get(edge.from);
-          const to = rowByHash.get(edge.to);
-          if (!from || !to) return null;
-          const x1 = laneX(edge.fromLane);
-          const y1 = rowY(from.row);
-          const x2 = laneX(edge.toLane);
-          const y2 = rowY(to.row);
-          const color = laneColor(from.lane);
-          const strokeWidth = from.lane === currentBranchLane ? 3 : 2;
-          const key = `${edge.from}:${edge.to}`;
-          if (x1 === x2) {
-            return <line key={key} x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth={strokeWidth} />;
-          }
-          const midY = (y1 + y2) / 2;
-          return (
-            <path
-              key={key}
-              d={`M${x1} ${y1} C${x1} ${midY} ${x2} ${midY} ${x2} ${y2}`}
-              stroke={color}
-              strokeWidth={strokeWidth}
-              fill="none"
-            />
-          );
-        })}
-        {visibleNodes.map((node) => {
-          const isHead = node.refs.some((r) => r.isHead);
-          const selected = node.hash === selectedHash;
-          const compared = node.hash === compareHash;
-          const dimmed = isDimmed(node.hash);
-          const color = laneColor(node.lane);
-          return (
-            <circle
-              key={node.hash}
-              cx={laneX(node.lane)}
-              cy={rowY(node.row)}
-              r={selected || compared ? 7 : 5.5}
-              fill={isHead ? color : "var(--color-bg)"}
-              stroke={color}
-              strokeWidth={selected || compared ? 3 : 2}
-              strokeDasharray={compared ? "3 2" : undefined}
-              opacity={dimmed ? 0.25 : 1}
-            />
-          );
-        })}
-      </svg>
+      <div className="graph-svg-viewport" style={{ maxWidth: MAX_GRAPH_WIDTH }}>
+        <svg width={graphWidth} height={totalHeight} className="graph-svg">
+          {visibleEdges.map((edge) => {
+            const from = rowByHash.get(edge.from);
+            const to = rowByHash.get(edge.to);
+            if (!from || !to) return null;
+            const x1 = laneX(edge.fromLane);
+            const y1 = rowY(from.row);
+            const x2 = laneX(edge.toLane);
+            const y2 = rowY(to.row);
+            const color = laneColor(from.lane);
+            const strokeWidth = from.lane === currentBranchLane ? 3 : 2;
+            const key = `${edge.from}:${edge.to}`;
+            if (x1 === x2) {
+              return <line key={key} x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth={strokeWidth} />;
+            }
+            const midY = (y1 + y2) / 2;
+            return (
+              <path
+                key={key}
+                d={`M${x1} ${y1} C${x1} ${midY} ${x2} ${midY} ${x2} ${y2}`}
+                stroke={color}
+                strokeWidth={strokeWidth}
+                fill="none"
+              />
+            );
+          })}
+          {visibleNodes.map((node) => {
+            const isHead = node.refs.some((r) => r.isHead);
+            const selected = node.hash === selectedHash;
+            const compared = node.hash === compareHash;
+            const dimmed = isDimmed(node.hash);
+            const color = laneColor(node.lane);
+            return (
+              <circle
+                key={node.hash}
+                cx={laneX(node.lane)}
+                cy={rowY(node.row)}
+                r={selected || compared ? 7 : 5.5}
+                fill={isHead ? color : "var(--color-bg)"}
+                stroke={color}
+                strokeWidth={selected || compared ? 3 : 2}
+                strokeDasharray={compared ? "3 2" : undefined}
+                opacity={dimmed ? 0.25 : 1}
+              />
+            );
+          })}
+        </svg>
+      </div>
       <div className="graph-rows" style={{ height: totalHeight }}>
         {visibleNodes.map((node) => (
           <div key={node.hash} className="graph-row-positioner" style={{ top: node.row * ROW_HEIGHT }}>
