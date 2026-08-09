@@ -1,3 +1,4 @@
+import type { MouseEvent } from "react";
 import type { CommitNode } from "@minigit2/shared";
 import type { Theme } from "../design-system/palette";
 import CopyableText from "./CopyableText";
@@ -8,16 +9,35 @@ interface Props {
   height: number;
   theme: Theme;
   selected: boolean;
+  compared: boolean;
   onSelect: () => void;
+  onCompareClick: () => void;
   onCheckoutRef: (ref: string) => void;
 }
 
-export default function CommitRow({ node, height, theme, selected, onSelect, onCheckoutRef }: Props) {
+export default function CommitRow({
+  node,
+  height,
+  theme,
+  selected,
+  compared,
+  onSelect,
+  onCompareClick,
+  onCheckoutRef,
+}: Props) {
+  function handleClick(e: MouseEvent) {
+    if (e.metaKey || e.ctrlKey) {
+      onCompareClick();
+    } else {
+      onSelect();
+    }
+  }
+
   return (
     <div
-      className={`commit-row${selected ? " selected" : ""}`}
+      className={`commit-row${selected ? " selected" : ""}${compared ? " compared" : ""}`}
       style={{ height }}
-      onClick={onSelect}
+      onClick={handleClick}
       onDoubleClick={() => onCheckoutRef(node.hash)}
     >
       <CopyableText className="commit-hash" value={node.hash} display={node.hash.slice(0, 7)} />

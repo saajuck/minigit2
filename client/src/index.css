@@ -274,11 +274,17 @@
   background: var(--color-select-bg);
 }
 
+.commit-row.compared {
+  outline: 1px dashed var(--color-accent);
+  outline-offset: -1px;
+}
+
 .commit-hash {
   font-family: var(--font-mono);
   font-size: 11px;
   color: color-mix(in srgb, var(--color-text) 50%, transparent);
   flex-shrink: 0;
+  cursor: pointer;
 }
 
 .commit-subject {
@@ -349,11 +355,20 @@
   font-family: var(--font-mono);
   font-size: 12px;
   color: color-mix(in srgb, var(--color-text) 55%, transparent);
+  cursor: pointer;
+  display: inline-block;
 }
 
 .diff-subject {
   font-size: 14px;
   margin-top: 2px;
+}
+
+.diff-compare-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .diff-submeta {
@@ -408,6 +423,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: pointer;
 }
 
 .file-diff-chevron {

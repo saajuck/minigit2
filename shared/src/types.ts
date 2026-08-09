@@ -73,6 +73,11 @@ export interface FilePatchResponse {
   patch: string;
 }
 
+export interface AheadBehind {
+  ahead: number;
+  behind: number;
+}
+
 export interface StatusResponse {
   headCommit: string | null;
   branch: string | null;
@@ -81,6 +86,14 @@ export interface StatusResponse {
   staged: number;
   unstaged: number;
   untracked: number;
+  /** Null when detached, or the branch has no configured upstream. */
+  aheadBehind: AheadBehind | null;
+}
+
+export interface CompareResponse {
+  from: string;
+  to: string;
+  files: FileDiffSummary[];
 }
 
 export interface CheckoutRequest {

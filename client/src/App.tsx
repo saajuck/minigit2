@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { DiffResponse, GraphResponse, RepoSummary, StatusResponse } from "@minigit2/shared";
+import type { CompareResponse, DiffResponse, GraphResponse, RepoSummary, StatusResponse } from "@minigit2/shared";
 import { ApiRequestError, api } from "./api/client";
 import AddRepoDialog from "./components/AddRepoDialog";
 import ConfirmCheckoutDialog from "./components/ConfirmCheckoutDialog";
@@ -30,7 +30,9 @@ export default function App() {
   const [graphLoading, setGraphLoading] = useState(false);
   const [graphError, setGraphError] = useState<string | null>(null);
   const [selectedHash, setSelectedHash] = useState<string | null>(null);
+  const [compareHash, setCompareHash] = useState<string | null>(null);
   const [diff, setDiff] = useState<DiffResponse | null>(null);
+  const [compare, setCompare] = useState<CompareResponse | null>(null);
   const [diffLoading, setDiffLoading] = useState(false);
   const [diffError, setDiffError] = useState<string | null>(null);
   const [status, setStatus] = useState<StatusResponse | null>(null);
@@ -112,8 +114,27 @@ export default function App() {
     }
   }, []);
 
+  function selectCommit(hash: string) {
+    setSelectedHash(hash);
+    setCompareHash(null);
+  }
+
+  function handleCompareClick(hash: string) {
+    if (compareHash === hash) {
+      setCompareHash(null);
+      return;
+    }
+    if (!selectedHash || selectedHash === hash) {
+      setSelectedHash(hash);
+      setCompareHash(null);
+      return;
+    }
+    setCompareHash(hash);
+  }
+
   useEffect(() => {
     setSelectedHash(null);
+    setCompareHash(null);
     setDiff(null);
     setCheckoutError(null);
     setPendingCheckoutRef(null);
@@ -142,7 +163,7 @@ export default function App() {
   }, [activeRepoId, refreshGraph, refreshStatus, graph]);
 
   useEffect(() => {
-    if (!activeRepoId || !selectedHash) {
+    if (!activeRepoId || !selectedHash || compareHash) {
       setDiff(null);
       return;
     }
@@ -163,7 +184,31 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [activeRepoId, selectedHash]);
+  }, [activeRepoId, selectedHash, compareHash]);
+
+  useEffect(() => {
+    if (!activeRepoId || !selectedHash || !compareHash) {
+      setCompare(null);
+      return;
+    }
+    let cancelled = false;
+    setDiffLoading(true);
+    setDiffError(null);
+    api
+      .compare(activeRepoId, selectedHash, compareHash)
+      .then((data) => {
+        if (!cancelled) setCompare(data);
+      })
+      .catch((err) => {
+        if (!cancelled) setDiffError((err as Error).message);
+      })
+      .finally(() => {
+        if (!cancelled) setDiffLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeRepoId, selectedHash, compareHash]);
 
   async function doCheckout(ref: string) {
     if (!activeRepoId) return;
@@ -273,8 +318,10 @@ export default function App() {
                       nodes={graph.nodes}
                       edges={graph.edges}
                       selectedHash={selectedHash}
+                      compareHash={compareHash}
                       theme={theme}
-                      onSelect={setSelectedHash}
+                      onSelect={selectCommit}
+                      onCompareClick={handleCompareClick}
                       onCheckoutRef={requestCheckout}
                     />
                   ) : (
@@ -288,9 +335,11 @@ export default function App() {
                     repoId={activeRepoId}
                     commit={selectedCommit}
                     diff={diff}
+                    compare={compare}
                     loading={diffLoading}
                     error={diffError}
                     theme={theme}
+                    onClearCompare={() => setCompareHash(null)}
                   />
                 </div>
               </div>

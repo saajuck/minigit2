@@ -5,15 +5,17 @@ interface Props {
   display?: string;
   className?: string;
   title?: string;
+  /** Set false to let the click also reach the parent's own handler (e.g. a
+   * row select or an expand toggle) instead of only copying. Defaults to true. */
+  stopPropagation?: boolean;
 }
 
-/** Click-to-copy span, with a brief "Copied!" flash. Stops propagation so it
- * doesn't also trigger whatever click handler its parent row/button has. */
-export default function CopyableText({ value, display, className, title }: Props) {
+/** Click-to-copy span, with a brief "Copied!" flash. */
+export default function CopyableText({ value, display, className, title, stopPropagation = true }: Props) {
   const [copied, setCopied] = useState(false);
 
   function handleClick(e: MouseEvent) {
-    e.stopPropagation();
+    if (stopPropagation) e.stopPropagation();
     navigator.clipboard.writeText(value).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1200);

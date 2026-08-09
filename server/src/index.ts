@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkoutRouter } from "./routes/checkout";
+import { compareRouter } from "./routes/compare";
 import { diffRouter } from "./routes/diff";
 import { fsRouter } from "./routes/fs";
 import { graphRouter } from "./routes/graph";
@@ -23,6 +24,7 @@ app.use("/api/fs", fsRouter);
 app.use("/api/repos", reposRouter);
 app.use("/api/repos/:id/graph", graphRouter);
 app.use("/api/repos/:id/commits", diffRouter);
+app.use("/api/repos/:id/compare", compareRouter);
 app.use("/api/repos/:id/status", statusRouter);
 app.use("/api/repos/:id/checkout", checkoutRouter);
 
