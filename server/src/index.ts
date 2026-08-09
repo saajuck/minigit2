@@ -2,6 +2,7 @@ import express from "express";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { branchesRouter } from "./routes/branches";
 import { checkoutRouter } from "./routes/checkout";
 import { compareRouter } from "./routes/compare";
 import { diffRouter } from "./routes/diff";
@@ -33,6 +34,7 @@ app.use("/api/repos/:id/checkout", checkoutRouter);
 app.use("/api/repos/:id/stash", stashRouter);
 app.use("/api/repos/:id/reflog", reflogRouter);
 app.use("/api/repos/:id/local-diff", localDiffRouter);
+app.use("/api/repos/:id/branches", branchesRouter);
 
 const clientDist = path.resolve(__dirname, "../../client/dist");
 if (existsSync(clientDist)) {

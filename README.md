@@ -15,9 +15,13 @@ without editing it.
   expands and loads its patch on demand. Resizable panel (drag the
   divider).
 - **Checkout**: double-click a commit for a detached checkout, or a branch
-  badge to check out that branch. Confirms if the working tree has
-  uncommitted changes; `git`'s own refusal remains the final safety net (no
+  badge to check out that branch (checking out a remote badge creates/reuses
+  a local tracking branch instead of detaching, matching `git checkout
+  <name>`'s own DWIM behavior). Confirms if the working tree has uncommitted
+  changes; `git`'s own refusal remains the final safety net (no
   force/discard).
+- **Branches**: local vs. remote-tracking branches listed separately, with
+  the repo's default branch marked (resolved from `origin/HEAD`).
 - **Status**: bar showing current branch / detached HEAD / working tree
   dirty state, ahead/behind counts vs the tracked upstream, manual refresh
   button plus automatic refresh every 30s (new commits found in the
@@ -37,7 +41,7 @@ without editing it.
 - **Local changes, stash, reflog**: view the working tree's uncommitted diff
   (staged, unstaged, and untracked files) in the same diff panel used for
   commits; read-only lists of stashed changes and the reflog, each with
-  copyable hashes.
+  copyable hashes. Click a stash entry to expand its own file diff.
 
 > This list is updated as major features land, not for implementation
 > details — see the Git history for that.

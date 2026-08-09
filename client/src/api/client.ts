@@ -1,4 +1,5 @@
 import type {
+  BranchesResponse,
   CheckoutResponse,
   CompareResponse,
   DiffResponse,
@@ -74,4 +75,5 @@ export const api = {
   getLocalDiff: (repoId: string) => request<LocalDiffResponse>(`/repos/${repoId}/local-diff`),
   getLocalDiffPatch: (repoId: string, path: string) =>
     request<FilePatchResponse>(`/repos/${repoId}/local-diff/file?path=${encodeURIComponent(path)}`),
+  getBranches: (repoId: string) => request<BranchesResponse>(`/repos/${repoId}/branches`),
 };

@@ -104,6 +104,19 @@ export function HistoryIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function ListBranchesIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon width="13" height="13" {...props}>
+      <circle cx="4" cy="6" r="1.5" />
+      <circle cx="4" cy="12" r="1.5" />
+      <circle cx="4" cy="18" r="1.5" />
+      <line x1="9" y1="6" x2="21" y2="6" />
+      <line x1="9" y1="12" x2="21" y2="12" />
+      <line x1="9" y1="18" x2="21" y2="18" />
+    </Icon>
+  );
+}
+
 export function FileEditIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon width="13" height="13" {...props}>

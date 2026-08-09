@@ -9,6 +9,7 @@ import type {
 } from "@minigit2/shared";
 import { ApiRequestError, api } from "./api/client";
 import AddRepoDialog from "./components/AddRepoDialog";
+import BranchesDialog from "./components/BranchesDialog";
 import CommitSearch from "./components/CommitSearch";
 import ConfirmCheckoutDialog from "./components/ConfirmCheckoutDialog";
 import DiffPanel from "./components/DiffPanel";
@@ -23,6 +24,7 @@ import {
   FileEditIcon,
   GitBranchIcon,
   HistoryIcon,
+  ListBranchesIcon,
   MoonIcon,
   PlusIcon,
   RefreshIcon,
@@ -64,6 +66,7 @@ export default function App() {
   const [localDiff, setLocalDiff] = useState<LocalDiffResponse | null>(null);
   const [stashOpen, setStashOpen] = useState(false);
   const [reflogOpen, setReflogOpen] = useState(false);
+  const [branchesOpen, setBranchesOpen] = useState(false);
   const [diffPaneWidth, setDiffPaneWidth] = useState<number>(() => {
     const stored = Number(localStorage.getItem(DIFF_WIDTH_KEY));
     return stored >= MIN_DIFF_WIDTH && stored <= MAX_DIFF_WIDTH ? stored : DEFAULT_DIFF_WIDTH;
@@ -399,6 +402,15 @@ export default function App() {
                   <button
                     type="button"
                     className="btn btn-secondary"
+                    onClick={() => setBranchesOpen(true)}
+                    title="List local and remote branches"
+                  >
+                    <ListBranchesIcon />
+                    Branches
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
                     onClick={() => setStashOpen(true)}
                     title="View stashed changes"
                   >
@@ -500,8 +512,17 @@ export default function App() {
       </div>
 
       {addRepoOpen && <AddRepoDialog onAdd={handleAddRepo} onClose={() => setAddRepoOpen(false)} />}
-      {stashOpen && activeRepoId && <StashDialog repoId={activeRepoId} onClose={() => setStashOpen(false)} />}
+      {stashOpen && activeRepoId && (
+        <StashDialog repoId={activeRepoId} theme={theme} onClose={() => setStashOpen(false)} />
+      )}
       {reflogOpen && activeRepoId && <ReflogDialog repoId={activeRepoId} onClose={() => setReflogOpen(false)} />}
+      {branchesOpen && activeRepoId && (
+        <BranchesDialog
+          repoId={activeRepoId}
+          onClose={() => setBranchesOpen(false)}
+          onCheckoutRef={requestCheckout}
+        />
+      )}
       {pendingCheckoutRef && (
         <ConfirmCheckoutDialog
           target={pendingCheckoutRef}
