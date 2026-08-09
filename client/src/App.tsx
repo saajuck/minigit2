@@ -30,6 +30,7 @@ import {
   RefreshIcon,
   SunIcon,
 } from "./design-system/icons";
+import { ToastHost } from "./design-system/toast";
 import { useTheme } from "./design-system/useTheme";
 
 const ACTIVE_REPO_KEY = "minigit2:activeRepoId";
@@ -519,6 +520,7 @@ export default function App() {
       {branchesOpen && activeRepoId && (
         <BranchesDialog
           repoId={activeRepoId}
+          headRefreshKey={status ? `${status.branch ?? ""}:${status.headCommit ?? ""}` : null}
           onClose={() => setBranchesOpen(false)}
           onCheckoutRef={requestCheckout}
         />
@@ -530,6 +532,7 @@ export default function App() {
           onCancel={() => setPendingCheckoutRef(null)}
         />
       )}
+      <ToastHost />
     </div>
   );
 }

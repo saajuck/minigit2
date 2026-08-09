@@ -73,7 +73,13 @@ export default function GraphView({
   }
 
   const pal = getPalette(theme);
-  const laneColor = (lane: number) => pal[lane % pal.length]!.stroke;
+  // Lanes are colored by column index, not branch identity (see docs/PLAN.md) — so
+  // highlighting "the current branch" means highlighting whichever lane the checked-out
+  // branch's HEAD commit currently sits in, the same approximation the rest of the graph
+  // already makes.
+  const currentBranchLane = nodes.find((n) => n.refs.some((r) => r.type === "branch" && r.isHead))?.lane ?? null;
+  const laneColor = (lane: number) =>
+    lane === currentBranchLane ? pal[lane % pal.length]!.strong : pal[lane % pal.length]!.stroke;
 
   const maxLane = nodes.reduce((max, n) => Math.max(max, n.lane), 0);
   const graphWidth = PAD_X + (maxLane + 1) * LANE_WIDTH;
@@ -149,9 +155,10 @@ export default function GraphView({
           const x2 = laneX(edge.toLane);
           const y2 = rowY(to.row);
           const color = laneColor(from.lane);
+          const strokeWidth = from.lane === currentBranchLane ? 3 : 2;
           const key = `${edge.from}:${edge.to}`;
           if (x1 === x2) {
-            return <line key={key} x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth={2} />;
+            return <line key={key} x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth={strokeWidth} />;
           }
           const midY = (y1 + y2) / 2;
           return (
@@ -159,7 +166,7 @@ export default function GraphView({
               key={key}
               d={`M${x1} ${y1} C${x1} ${midY} ${x2} ${midY} ${x2} ${y2}`}
               stroke={color}
-              strokeWidth={2}
+              strokeWidth={strokeWidth}
               fill="none"
             />
           );

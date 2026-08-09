@@ -12,6 +12,7 @@ import type {
   StashListResponse,
   StatusResponse,
 } from "@minigit2/shared";
+import { showToast } from "../design-system/toast";
 
 export class ApiRequestError extends Error {
   readonly code: string;
@@ -23,11 +24,32 @@ export class ApiRequestError extends Error {
   }
 }
 
+// Error codes with their own dedicated, expected inline UI (form validation, the dirty-worktree
+// confirm dialog, etc.) — toasting those on top would just be noise. Everything else, chiefly the
+// server's "git_error" for a failed git command, is unexpected and easy to miss if it only ever
+// updates some local state (or, worse, is silently swallowed) — so it always gets a toast too.
+const SILENT_CODES = new Set([
+  "invalid_path",
+  "invalid_ref",
+  "invalid_refs",
+  "invalid_request",
+  "already_added",
+  "not_found",
+  "dirty_worktree",
+  "not_a_directory",
+]);
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`/api${path}`, {
-    headers: { "Content-Type": "application/json" },
-    ...init,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`/api${path}`, {
+      headers: { "Content-Type": "application/json" },
+      ...init,
+    });
+  } catch (err) {
+    showToast(`Network error: ${(err as Error).message}`);
+    throw err;
+  }
   if (!res.ok) {
     let body: { error?: string; message?: string } = {};
     try {
@@ -35,7 +57,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       // no JSON body, keep default message below
     }
-    throw new ApiRequestError(body.error ?? "unknown_error", body.message ?? `Request failed: ${res.status}`);
+    const code = body.error ?? "unknown_error";
+    const message = body.message ?? `Request failed: ${res.status}`;
+    if (!SILENT_CODES.has(code)) {
+      showToast(message);
+    }
+    throw new ApiRequestError(code, message);
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
