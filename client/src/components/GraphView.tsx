@@ -2,16 +2,16 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { CommitNode, GraphEdge } from "@minigit2/shared";
 import { getPalette, type Theme } from "../design-system/palette";
 import CommitRow from "./CommitRow";
+import ResizableDivider from "./ResizableDivider";
 
 const ROW_HEIGHT = 34;
 const LANE_WIDTH = 22;
 const PAD_X = 18;
 const OVERSCAN_ROWS = 8;
-// Cap how much horizontal space the lane area can claim, in lane-widths — independent of
-// how many concurrent branches the repo actually has. Beyond this, the SVG scrolls within
-// its own strip instead of pushing .graph-rows (the commit text) further and further right.
-const VISIBLE_LANES = 8;
-const MAX_GRAPH_WIDTH = PAD_X + VISIBLE_LANES * LANE_WIDTH;
+// How many lanes the default lane-strip width corresponds to — the strip itself is
+// user-resizable (see App.tsx's graphLaneWidth), this only seeds its initial value.
+const DEFAULT_VISIBLE_LANES = 5;
+export const DEFAULT_LANE_WIDTH = PAD_X + DEFAULT_VISIBLE_LANES * LANE_WIDTH;
 
 interface Props {
   nodes: CommitNode[];
@@ -21,6 +21,9 @@ interface Props {
   /** Non-null while a search is active: hashes matching the query. Rows outside this set are dimmed. */
   matchHashes: Set<string> | null;
   theme: Theme;
+  /** Width of the lane area, in px — user-resizable via the divider, not derived from the graph's own lane count. */
+  laneWidth: number;
+  onLaneResize: (deltaX: number) => void;
   onSelect: (hash: string) => void;
   onCompareClick: (hash: string) => void;
   onCheckoutRef: (ref: string) => void;
@@ -33,6 +36,8 @@ export default function GraphView({
   compareHash,
   matchHashes,
   theme,
+  laneWidth,
+  onLaneResize,
   onSelect,
   onCompareClick,
   onCheckoutRef,
@@ -154,7 +159,10 @@ export default function GraphView({
       <i className="corner tr" />
       <i className="corner bl" />
       <i className="corner br" />
-      <div className="graph-svg-viewport" style={{ maxWidth: MAX_GRAPH_WIDTH }}>
+      <div
+        className={`graph-svg-viewport${graphWidth > laneWidth ? " graph-svg-viewport-overflowing" : ""}`}
+        style={{ width: laneWidth }}
+      >
         <svg width={graphWidth} height={totalHeight} className="graph-svg">
           {visibleEdges.map((edge) => {
             const from = rowByHash.get(edge.from);
@@ -203,6 +211,7 @@ export default function GraphView({
           })}
         </svg>
       </div>
+      <ResizableDivider onResize={onLaneResize} />
       <div className="graph-rows" style={{ height: totalHeight }}>
         {visibleNodes.map((node) => (
           <div key={node.hash} className="graph-row-positioner" style={{ top: node.row * ROW_HEIGHT }}>
