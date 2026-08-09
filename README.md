@@ -52,6 +52,13 @@ without editing it.
 
 Architecture and technical decisions: [docs/PLAN.md](docs/PLAN.md).
 
+## Install
+
+On Ubuntu, download the AppImage from the
+[Releases page](https://github.com/saajuck/minigit2/releases) — it opens as a normal desktop
+window, no browser tab required. Other platforms run from source. See
+[docs/DEPLOY.md](docs/DEPLOY.md) for details.
+
 ## Development
 
 ```bash

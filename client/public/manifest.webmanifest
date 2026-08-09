@@ -1,0 +1,23 @@
+{
+  "name": "minigit2",
+  "short_name": "minigit2",
+  "description": "A local Git graph client: visualize a repo's history and navigate it.",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#5980a6",
+  "background_color": "#f5f5f8",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

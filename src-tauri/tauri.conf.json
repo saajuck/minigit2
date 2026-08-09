@@ -1,0 +1,31 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "minigit2",
+  "version": "0.1.0",
+  "identifier": "com.minigit2.desktop",
+  "build": {
+    "frontendDist": "../client/dist",
+    "devUrl": "http://127.0.0.1:4300"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["appimage"],
+    "externalBin": ["binaries/minigit2-server"],
+    "resources": {
+      "../client/dist": "client-dist"
+    },
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}
