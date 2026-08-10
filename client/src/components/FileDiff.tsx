@@ -2,11 +2,13 @@ import { useState, type CSSProperties } from "react";
 import type { BlameResponse, FileDiffSummary } from "@minigit2/shared";
 import { getPalette, type LaneColor, type Theme } from "../design-system/palette";
 import { ChevronRightIcon } from "../design-system/icons";
-import CopyableText from "./CopyableText";
 
 interface Props {
   file: FileDiffSummary;
   theme: Theme;
+  /** What to show in the header — the full path in list view, just the filename in tree view
+   * (directory context is already conveyed by nesting there). Defaults to file.path. */
+  displayPath?: string;
   fetchPatch: () => Promise<string>;
   /** Only provided in single-commit diff mode (one concrete ref to blame against) — its presence
    * is what decides whether the Diff/Blame toggle renders at all. */
@@ -22,7 +24,7 @@ const STATUS_META: Record<FileDiffSummary["status"], { letter: string; laneIndex
   untracked: { letter: "U", laneIndex: 4 },
 };
 
-export default function FileDiff({ file, theme, fetchPatch, fetchBlame, onSelectCommit }: Props) {
+export default function FileDiff({ file, theme, displayPath, fetchPatch, fetchBlame, onSelectCommit }: Props) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<"diff" | "blame">("diff");
   const [patch, setPatch] = useState<string | null>(null);
@@ -83,7 +85,9 @@ export default function FileDiff({ file, theme, fetchPatch, fetchBlame, onSelect
           <span className="file-diff-badge" style={{ background: badgeColor.bg, color: badgeColor.text }}>
             {meta.letter}
           </span>
-          <CopyableText className="file-diff-path" value={file.path} stopPropagation={false} />
+          <span className="file-diff-path" title={file.path}>
+            {displayPath ?? file.path}
+          </span>
           <span className="file-diff-chevron" style={{ transform: `rotate(${open ? 90 : 0}deg)` }}>
             <ChevronRightIcon />
           </span>

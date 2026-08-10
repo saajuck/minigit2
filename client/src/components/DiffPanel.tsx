@@ -2,7 +2,7 @@ import type { CommitNode, CompareResponse, DiffResponse, LocalDiffResponse } fro
 import { api } from "../api/client";
 import type { Theme } from "../design-system/palette";
 import CopyableText from "./CopyableText";
-import FileDiff from "./FileDiff";
+import FileChangeList from "./FileChangeList";
 
 interface Props {
   repoId: string | null;
@@ -48,16 +48,12 @@ export default function DiffPanel({
         {localDiff.files.length === 0 ? (
           <p className="muted">No uncommitted changes.</p>
         ) : (
-          <div className="diff-files">
-            {localDiff.files.map((file) => (
-              <FileDiff
-                key={`local:${file.oldPath ?? file.path}`}
-                file={file}
-                theme={theme}
-                fetchPatch={() => api.getLocalDiffPatch(repoId, file.path).then((r) => r.patch)}
-              />
-            ))}
-          </div>
+          <FileChangeList
+            key="local"
+            files={localDiff.files}
+            theme={theme}
+            fetchPatch={(file) => () => api.getLocalDiffPatch(repoId, file.path).then((r) => r.patch)}
+          />
         )}
       </div>
     );
@@ -80,18 +76,13 @@ export default function DiffPanel({
         {compare.files.length === 0 ? (
           <p className="muted">No differences between these two refs.</p>
         ) : (
-          <div className="diff-files">
-            {compare.files.map((file) => (
-              <FileDiff
-                key={`${compare.from}:${compare.to}:${file.oldPath ?? file.path}`}
-                file={file}
-                theme={theme}
-                fetchPatch={() =>
-                  api.getComparePatch(repoId, compare.from, compare.to, file.path).then((r) => r.patch)
-                }
-              />
-            ))}
-          </div>
+          <FileChangeList
+            key={`${compare.from}:${compare.to}`}
+            files={compare.files}
+            theme={theme}
+            fetchPatch={(file) => () =>
+              api.getComparePatch(repoId, compare.from, compare.to, file.path).then((r) => r.patch)}
+          />
         )}
       </div>
     );
@@ -123,18 +114,14 @@ export default function DiffPanel({
       {diff.files.length === 0 ? (
         <p className="muted">No file changes.</p>
       ) : (
-        <div className="diff-files">
-          {diff.files.map((file) => (
-            <FileDiff
-              key={`${diff.hash}:${file.oldPath ?? file.path}`}
-              file={file}
-              theme={theme}
-              fetchPatch={() => api.getFilePatch(repoId, diff.hash, file.path).then((r) => r.patch)}
-              fetchBlame={() => api.getFileBlame(repoId, diff.hash, file.path)}
-              onSelectCommit={onSelectCommit}
-            />
-          ))}
-        </div>
+        <FileChangeList
+          key={diff.hash}
+          files={diff.files}
+          theme={theme}
+          fetchPatch={(file) => () => api.getFilePatch(repoId, diff.hash, file.path).then((r) => r.patch)}
+          fetchBlame={(file) => () => api.getFileBlame(repoId, diff.hash, file.path)}
+          onSelectCommit={onSelectCommit}
+        />
       )}
     </div>
   );
