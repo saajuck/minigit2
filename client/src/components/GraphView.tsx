@@ -183,11 +183,18 @@ export default function GraphView({
             if (x1 === x2) {
               return <line key={key} x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth={strokeWidth} />;
             }
-            const midY = (y1 + y2) / 2;
+            // Confine the lane change to a single row height right after the child, then run
+            // straight down the target lane for the rest — not a bend stretched across the
+            // whole span. layoutGraph frees a commit's lane for reuse by an unrelated branch
+            // starting at the very next row, so a curve that keeps hugging the old lane for
+            // longer than that (as a symmetric midpoint bend does on a multi-row edge) visually
+            // overlaps whatever unrelated commits land in that freed lane.
+            const bendY = y1 + Math.sign(y2 - y1) * Math.min(ROW_HEIGHT, Math.abs(y2 - y1));
+            const midY = (y1 + bendY) / 2;
             return (
               <path
                 key={key}
-                d={`M${x1} ${y1} C${x1} ${midY} ${x2} ${midY} ${x2} ${y2}`}
+                d={`M${x1} ${y1} C${x1} ${midY} ${x2} ${midY} ${x2} ${bendY} L${x2} ${y2}`}
                 stroke={color}
                 strokeWidth={strokeWidth}
                 fill="none"
