@@ -34,7 +34,11 @@ export interface CommitNode {
   parents: string[];
   row: number;
   lane: number;
-  color: string;
+  /** Identifies which continuous branch run this commit belongs to, for coloring — stable
+   * across the whole run even where `lane` itself shifts (e.g. around a merge), so a single
+   * branch never appears to change color partway through. Not theme-aware (just a palette
+   * index); the client picks the actual color via its own theme-scoped palette. */
+  colorGroup: number;
   author: string;
   authorEmail: string;
   authorAvatarUrl: string;
@@ -48,6 +52,7 @@ export interface GraphEdge {
   to: string;
   fromLane: number;
   toLane: number;
+  colorGroup: number;
 }
 
 export interface GraphResponse {

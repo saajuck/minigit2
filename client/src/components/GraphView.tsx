@@ -83,13 +83,13 @@ export default function GraphView({
   }
 
   const pal = getPalette(theme);
-  // Lanes are colored by column index, not branch identity (see docs/PLAN.md) — so
-  // highlighting "the current branch" means highlighting whichever lane the checked-out
-  // branch's HEAD commit currently sits in, the same approximation the rest of the graph
-  // already makes.
-  const currentBranchLane = nodes.find((n) => n.refs.some((r) => r.type === "branch" && r.isHead))?.lane ?? null;
-  const laneColor = (lane: number) =>
-    lane === currentBranchLane ? pal[lane % pal.length]!.strong : pal[lane % pal.length]!.stroke;
+  // Colored by colorGroup (a persistent per-branch-run id from the server), not by the row's
+  // current lane — a lane number can legitimately shift around a merge, but colorGroup stays
+  // fixed for the whole continuous run, so a single branch never changes color partway through.
+  const currentBranchColorGroup =
+    nodes.find((n) => n.refs.some((r) => r.type === "branch" && r.isHead))?.colorGroup ?? null;
+  const groupColor = (colorGroup: number) =>
+    colorGroup === currentBranchColorGroup ? pal[colorGroup % pal.length]!.strong : pal[colorGroup % pal.length]!.stroke;
 
   const maxLane = nodes.reduce((max, n) => Math.max(max, n.lane), 0);
   const graphWidth = PAD_X + (maxLane + 1) * LANE_WIDTH;
@@ -177,8 +177,8 @@ export default function GraphView({
             const y1 = rowY(from.row);
             const x2 = laneX(edge.toLane);
             const y2 = rowY(to.row);
-            const color = laneColor(from.lane);
-            const strokeWidth = from.lane === currentBranchLane ? 3 : 2;
+            const color = groupColor(edge.colorGroup);
+            const strokeWidth = edge.colorGroup === currentBranchColorGroup ? 3 : 2;
             const key = `${edge.from}:${edge.to}`;
             if (x1 === x2) {
               return <line key={key} x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth={strokeWidth} />;
@@ -199,7 +199,7 @@ export default function GraphView({
             const selected = node.hash === selectedHash;
             const compared = node.hash === compareHash;
             const dimmed = isDimmed(node.hash);
-            const color = laneColor(node.lane);
+            const color = groupColor(node.colorGroup);
             return (
               <circle
                 key={node.hash}
