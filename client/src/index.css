@@ -729,14 +729,18 @@
   line-height: 1.6;
   overflow-x: auto;
   padding: 6px 0 10px;
-}
-
-.blame-row {
+  /* .blame-row is display:contents (see below) so its 3 children land here as direct grid
+   * items — one shared set of column tracks for every line, instead of each row sizing its
+   * own gutter/content columns independently and drifting out of alignment with its
+   * neighbors (the previous bug: display:grid was on .blame-row itself). */
   display: grid;
   grid-template-columns: minmax(90px, 160px) 32px 1fr;
   align-items: center;
-  gap: 6px;
-  padding: 0 10px;
+  column-gap: 6px;
+}
+
+.blame-row {
+  display: contents;
 }
 
 .blame-gutter {
@@ -745,6 +749,7 @@
   gap: 6px;
   min-width: 0;
   height: 1.6em;
+  padding-left: 10px;
 }
 
 .blame-avatar {
@@ -783,6 +788,7 @@
 
 .blame-content {
   white-space: pre;
+  padding-right: 10px;
 }
 
 /* — folder browser dialog — */
