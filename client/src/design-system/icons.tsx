@@ -136,3 +136,30 @@ export function FileEditIcon(props: SVGProps<SVGSVGElement>) {
     </Icon>
   );
 }
+
+export function ListIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon width="13" height="13" {...props}>
+      <line x1="8" y1="6" x2="21" y2="6" />
+      <line x1="8" y1="12" x2="21" y2="12" />
+      <line x1="8" y1="18" x2="21" y2="18" />
+      <line x1="3" y1="6" x2="3.01" y2="6" />
+      <line x1="3" y1="12" x2="3.01" y2="12" />
+      <line x1="3" y1="18" x2="3.01" y2="18" />
+    </Icon>
+  );
+}
+
+export function FolderTreeIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon width="13" height="13" {...props}>
+      <line x1="4" y1="4" x2="4" y2="20" />
+      <line x1="4" y1="7" x2="10" y2="7" />
+      <line x1="4" y1="13" x2="10" y2="13" />
+      <line x1="4" y1="19" x2="10" y2="19" />
+      <circle cx="14" cy="7" r="1.6" />
+      <circle cx="14" cy="13" r="1.6" />
+      <circle cx="14" cy="19" r="1.6" />
+    </Icon>
+  );
+}
