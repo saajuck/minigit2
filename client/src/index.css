@@ -317,15 +317,54 @@
   height: 26px;
 }
 
+.graph-view-wrapper {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
 .graph-view {
   display: flex;
   align-items: flex-start;
   flex: 1;
   min-height: 0;
+  min-width: 0;
   overflow-y: auto;
   /* The lane area is a fixed, user-resizable width (see .graph-svg-viewport) and the rest
    * of a row is fixed/truncated width, so the pane itself never needs to scroll sideways. */
   overflow-x: hidden;
+}
+
+/* A compact overview of the whole history compressed into the pane's own height (a
+ * flex-stretched sibling of .graph-view, so it's always exactly as tall) — drag anywhere on it
+ * to jump the main scroll position, tags highlighted since they're what's usually worth
+ * hunting for in a long history. */
+.graph-minimap {
+  position: relative;
+  flex-shrink: 0;
+  width: 14px;
+  cursor: pointer;
+  border-left: 1px solid var(--color-divider);
+  background: color-mix(in srgb, var(--color-text) 3%, transparent);
+}
+
+.graph-minimap-tag {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  height: 2px;
+  border-radius: 1px;
+}
+
+.graph-minimap-viewport {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  border-top: 1px solid var(--color-accent);
+  border-bottom: 1px solid var(--color-accent);
+  pointer-events: none;
 }
 
 /* User-resizable (via the ResizableDivider in GraphView.tsx) instead of growing with however
