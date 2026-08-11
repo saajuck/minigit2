@@ -80,6 +80,9 @@ export interface FileHotspot {
 export interface DiffResponse {
   hash: string;
   parentHash: string | null;
+  /** Everything after the commit message's subject line (git's "body") — empty string for a
+   * subject-only message. The subject itself is CommitNode.subject, from the graph. */
+  body: string;
   files: FileDiffSummary[];
 }
 

@@ -4,9 +4,17 @@ import { runGit } from "./exec";
 const EMPTY_TREE_HASH = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
 
 export async function getCommitFileList(repoPath: string, hash: string): Promise<DiffResponse> {
-  const parentHash = await getFirstParent(repoPath, hash);
+  const [parentHash, body] = await Promise.all([getFirstParent(repoPath, hash), getCommitBody(repoPath, hash)]);
   const diffBase = parentHash ?? EMPTY_TREE_HASH;
-  return { hash, parentHash, files: await diffNameStatus(repoPath, diffBase, hash) };
+  return { hash, parentHash, body, files: await diffNameStatus(repoPath, diffBase, hash) };
+}
+
+/** Everything after the commit message's subject line — git's own definition of "the body",
+ * already excluding the subject (CommitNode.subject, from the graph, covers that). Empty for the
+ * (common) case of a subject-only message. */
+async function getCommitBody(repoPath: string, hash: string): Promise<string> {
+  const { stdout } = await runGit(repoPath, ["log", "-1", "--format=%b", hash]);
+  return stdout.trimEnd();
 }
 
 /** Fetches a single file's patch on demand — the file list endpoint stays cheap even for large diffs. */

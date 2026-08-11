@@ -31,3 +31,13 @@ export function deriveCommitUrl(remoteUrl: string, hash: string): string | null 
   if (host.includes("bitbucket")) return `${webBase}/commits/${hash}`;
   return `${webBase}/commit/${hash}`;
 }
+
+/** GitLab auto-appends "See merge request <namespace>!<id>" to a merge commit's body, and the
+ * same `!<id>` shorthand shows up bare in hand-written commit messages too — always a GitLab
+ * merge request reference in practice (nobody writes that exact shape by coincidence), so no
+ * host sniffing needed the way deriveCommitUrl needs it for the commit-page path. */
+export function deriveMergeRequestUrl(remoteUrl: string, id: string): string | null {
+  const webBase = toWebBase(remoteUrl);
+  if (!webBase) return null;
+  return `${webBase}/-/merge_requests/${id}`;
+}
