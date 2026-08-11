@@ -1,6 +1,8 @@
 import type { CommitNode, CompareResponse, DiffResponse, LocalDiffResponse } from "@minigit2/shared";
 import { api } from "../api/client";
+import { ExternalLinkIcon } from "../design-system/icons";
 import type { Theme } from "../design-system/palette";
+import { deriveCommitUrl } from "../git/remoteUrl";
 import CopyableText from "./CopyableText";
 import DiffStats from "./DiffStats";
 import FileChangeList from "./FileChangeList";
@@ -14,6 +16,10 @@ interface Props {
   loading: boolean;
   error: string | null;
   theme: Theme;
+  /** The active repo's "origin" remote URL (raw git form), or null if it has none — turned into
+   * a web link for the currently displayed commit, when recognized (GitHub/GitLab/Bitbucket and
+   * compatible forges). */
+  remoteUrl: string | null;
   onClearCompare: () => void;
   onClearLocalDiff: () => void;
   onSelectCommit: (hash: string) => void;
@@ -28,6 +34,7 @@ export default function DiffPanel({
   loading,
   error,
   theme,
+  remoteUrl,
   onClearCompare,
   onClearLocalDiff,
   onSelectCommit,
@@ -101,10 +108,25 @@ export default function DiffPanel({
     );
   }
 
+  const commitUrl = remoteUrl ? deriveCommitUrl(remoteUrl, commit.hash) : null;
+
   return (
     <div className="diff-panel">
       <div className="diff-meta">
-        <CopyableText className="diff-hash" value={commit.hash} display={commit.hash.slice(0, 7)} />
+        <div className="diff-hash-row">
+          <CopyableText className="diff-hash" value={commit.hash} display={commit.hash.slice(0, 7)} />
+          {commitUrl && (
+            <a
+              className="diff-remote-link"
+              href={commitUrl}
+              target="_blank"
+              rel="noreferrer"
+              title="Open this commit on the remote host"
+            >
+              <ExternalLinkIcon />
+            </a>
+          )}
+        </div>
         <div className="diff-subject">{commit.subject}</div>
         <div className="diff-submeta">
           <img className="commit-avatar" src={commit.authorAvatarUrl} alt="" loading="lazy" />
