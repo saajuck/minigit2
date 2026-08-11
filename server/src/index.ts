@@ -15,6 +15,7 @@ import { reposRouter } from "./routes/repos";
 import { searchRouter } from "./routes/search";
 import { stashRouter } from "./routes/stash";
 import { statusRouter } from "./routes/status";
+import { watchRouter } from "./routes/watch";
 
 /** Deferred so a bundled/packaged build (no real source file on disk to resolve `import.meta.url`
  * against) can skip straight to the env var instead of throwing before the check even runs. */
@@ -46,6 +47,7 @@ app.use("/api/repos/:id/reflog", reflogRouter);
 app.use("/api/repos/:id/local-diff", localDiffRouter);
 app.use("/api/repos/:id/branches", branchesRouter);
 app.use("/api/repos/:id/search", searchRouter);
+app.use("/api/repos/:id/watch", watchRouter);
 
 const clientDist = resolveClientDist();
 if (existsSync(clientDist)) {
