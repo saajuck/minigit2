@@ -9,6 +9,9 @@ interface Props {
   viewportHeight: number;
   totalHeight: number;
   rowHeight: number;
+  /** Non-null while a search is active — matching rows get their own tick, in a different
+   * color from tags so both stay legible on a commit that happens to be both. */
+  matchHashes: Set<string> | null;
   onScrollTo: (top: number) => void;
 }
 
@@ -18,7 +21,9 @@ interface Props {
  * of equal height, so no separate size tracking is needed here). Tags get a highlighted tick
  * since they're what you're usually hunting for in a long history; branch tips aren't marked —
  * there are normally too many of them for individual ticks to stay legible at this scale, and
- * the commit search box already finds a specific branch's tip on request. */
+ * the commit search box already finds a specific branch's tip on request. Search matches get
+ * their own tick too, in a different column (left vs right half of the strip) so a commit that's
+ * both tagged and matching still shows both. */
 export default function GraphMinimap({
   nodes,
   theme,
@@ -26,6 +31,7 @@ export default function GraphMinimap({
   viewportHeight,
   totalHeight,
   rowHeight,
+  matchHashes,
   onScrollTo,
 }: Props) {
   const elRef = useRef<HTMLDivElement>(null);
@@ -36,6 +42,7 @@ export default function GraphMinimap({
   const scale = viewportHeight / totalHeight;
   const pal = getPalette(theme);
   const tagColor = pal[2]!.stroke;
+  const matchColor = pal[3]!.stroke;
 
   function scrollToClientY(clientY: number) {
     const el = elRef.current;
@@ -68,6 +75,16 @@ export default function GraphMinimap({
 
   return (
     <div className="graph-minimap" ref={elRef} onMouseDown={handleMouseDown} title="Drag to navigate the graph">
+      {matchHashes &&
+        nodes
+          .filter((n) => matchHashes.has(n.hash))
+          .map((n) => (
+            <div
+              key={n.hash}
+              className="graph-minimap-match"
+              style={{ top: n.row * rowHeight * scale, background: matchColor }}
+            />
+          ))}
       {nodes
         .filter((n) => n.refs.some((r) => r.type === "tag"))
         .map((n) => {
