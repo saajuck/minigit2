@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { CommitNode, GraphEdge } from "@minigit2/shared";
 import { getPalette, type Theme } from "../design-system/palette";
 import CommitRow from "./CommitRow";
+import GraphMinimap from "./GraphMinimap";
 import ResizableDivider from "./ResizableDivider";
 
 const ROW_HEIGHT = 34;
@@ -153,94 +154,107 @@ export default function GraphView({
   }
 
   return (
-    <div
-      className="blueprint graph-view"
-      ref={containerRef}
-      tabIndex={0}
-      onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
-      onKeyDown={handleKeyDown}
-    >
-      <i className="corner tl" />
-      <i className="corner tr" />
-      <i className="corner bl" />
-      <i className="corner br" />
+    <div className="graph-view-wrapper">
       <div
-        className={`graph-svg-viewport${graphWidth > laneWidth ? " graph-svg-viewport-overflowing" : ""}`}
-        style={{ width: laneWidth }}
+        className="blueprint graph-view"
+        ref={containerRef}
+        tabIndex={0}
+        onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+        onKeyDown={handleKeyDown}
       >
-        <svg width={graphWidth} height={totalHeight} className="graph-svg">
-          {visibleEdges.map((edge) => {
-            const from = rowByHash.get(edge.from);
-            const to = rowByHash.get(edge.to);
-            if (!from || !to) return null;
-            const x1 = laneX(edge.fromLane);
-            const y1 = rowY(from.row);
-            const x2 = laneX(edge.toLane);
-            const y2 = rowY(to.row);
-            const color = groupColor(edge.colorGroup);
-            const strokeWidth = edge.colorGroup === currentBranchColorGroup ? 3 : 2;
-            const key = `${edge.from}:${edge.to}`;
-            if (x1 === x2) {
-              return <line key={key} x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth={strokeWidth} />;
-            }
-            // Confine the lane change to a single row height right after the child, then run
-            // straight down the target lane for the rest — not a bend stretched across the
-            // whole span. layoutGraph frees a commit's lane for reuse by an unrelated branch
-            // starting at the very next row, so a curve that keeps hugging the old lane for
-            // longer than that (as a symmetric midpoint bend does on a multi-row edge) visually
-            // overlaps whatever unrelated commits land in that freed lane.
-            const bendY = y1 + Math.sign(y2 - y1) * Math.min(ROW_HEIGHT, Math.abs(y2 - y1));
-            const midY = (y1 + bendY) / 2;
-            return (
-              <path
-                key={key}
-                d={`M${x1} ${y1} C${x1} ${midY} ${x2} ${midY} ${x2} ${bendY} L${x2} ${y2}`}
-                stroke={color}
-                strokeWidth={strokeWidth}
-                fill="none"
+        <i className="corner tl" />
+        <i className="corner tr" />
+        <i className="corner bl" />
+        <i className="corner br" />
+        <div
+          className={`graph-svg-viewport${graphWidth > laneWidth ? " graph-svg-viewport-overflowing" : ""}`}
+          style={{ width: laneWidth }}
+        >
+          <svg width={graphWidth} height={totalHeight} className="graph-svg">
+            {visibleEdges.map((edge) => {
+              const from = rowByHash.get(edge.from);
+              const to = rowByHash.get(edge.to);
+              if (!from || !to) return null;
+              const x1 = laneX(edge.fromLane);
+              const y1 = rowY(from.row);
+              const x2 = laneX(edge.toLane);
+              const y2 = rowY(to.row);
+              const color = groupColor(edge.colorGroup);
+              const strokeWidth = edge.colorGroup === currentBranchColorGroup ? 3 : 2;
+              const key = `${edge.from}:${edge.to}`;
+              if (x1 === x2) {
+                return <line key={key} x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth={strokeWidth} />;
+              }
+              // Confine the lane change to a single row height right after the child, then run
+              // straight down the target lane for the rest — not a bend stretched across the
+              // whole span. layoutGraph frees a commit's lane for reuse by an unrelated branch
+              // starting at the very next row, so a curve that keeps hugging the old lane for
+              // longer than that (as a symmetric midpoint bend does on a multi-row edge) visually
+              // overlaps whatever unrelated commits land in that freed lane.
+              const bendY = y1 + Math.sign(y2 - y1) * Math.min(ROW_HEIGHT, Math.abs(y2 - y1));
+              const midY = (y1 + bendY) / 2;
+              return (
+                <path
+                  key={key}
+                  d={`M${x1} ${y1} C${x1} ${midY} ${x2} ${midY} ${x2} ${bendY} L${x2} ${y2}`}
+                  stroke={color}
+                  strokeWidth={strokeWidth}
+                  fill="none"
+                />
+              );
+            })}
+            {visibleNodes.map((node) => {
+              const isHead = node.refs.some((r) => r.isHead);
+              const selected = node.hash === selectedHash;
+              const compared = node.hash === compareHash;
+              const dimmed = isDimmed(node.hash);
+              const color = groupColor(node.colorGroup);
+              return (
+                <circle
+                  key={node.hash}
+                  cx={laneX(node.lane)}
+                  cy={rowY(node.row)}
+                  r={selected || compared ? 7 : 5.5}
+                  fill={isHead ? color : "var(--color-bg)"}
+                  stroke={color}
+                  strokeWidth={selected || compared ? 3 : 2}
+                  strokeDasharray={compared ? "3 2" : undefined}
+                  opacity={dimmed ? 0.25 : 1}
+                />
+              );
+            })}
+          </svg>
+        </div>
+        <ResizableDivider onResize={onLaneResize} className="graph-lane-divider" />
+        <div className="graph-rows" style={{ height: totalHeight }}>
+          {visibleNodes.map((node) => (
+            <div key={node.hash} className="graph-row-positioner" style={{ top: node.row * ROW_HEIGHT }}>
+              <CommitRow
+                node={node}
+                height={ROW_HEIGHT}
+                theme={theme}
+                selected={node.hash === selectedHash}
+                compared={node.hash === compareHash}
+                dimmed={isDimmed(node.hash)}
+                onSelect={() => onSelect(node.hash)}
+                onCompareClick={() => onCompareClick(node.hash)}
+                onCheckoutRef={onCheckoutRef}
               />
-            );
-          })}
-          {visibleNodes.map((node) => {
-            const isHead = node.refs.some((r) => r.isHead);
-            const selected = node.hash === selectedHash;
-            const compared = node.hash === compareHash;
-            const dimmed = isDimmed(node.hash);
-            const color = groupColor(node.colorGroup);
-            return (
-              <circle
-                key={node.hash}
-                cx={laneX(node.lane)}
-                cy={rowY(node.row)}
-                r={selected || compared ? 7 : 5.5}
-                fill={isHead ? color : "var(--color-bg)"}
-                stroke={color}
-                strokeWidth={selected || compared ? 3 : 2}
-                strokeDasharray={compared ? "3 2" : undefined}
-                opacity={dimmed ? 0.25 : 1}
-              />
-            );
-          })}
-        </svg>
+            </div>
+          ))}
+        </div>
       </div>
-      <ResizableDivider onResize={onLaneResize} className="graph-lane-divider" />
-      <div className="graph-rows" style={{ height: totalHeight }}>
-        {visibleNodes.map((node) => (
-          <div key={node.hash} className="graph-row-positioner" style={{ top: node.row * ROW_HEIGHT }}>
-            <CommitRow
-              node={node}
-              height={ROW_HEIGHT}
-              theme={theme}
-              selected={node.hash === selectedHash}
-              compared={node.hash === compareHash}
-              dimmed={isDimmed(node.hash)}
-              onSelect={() => onSelect(node.hash)}
-              onCompareClick={() => onCompareClick(node.hash)}
-              onCheckoutRef={onCheckoutRef}
-            />
-          </div>
-        ))}
-      </div>
+      <GraphMinimap
+        nodes={nodes}
+        theme={theme}
+        scrollTop={scrollTop}
+        viewportHeight={viewportHeight}
+        totalHeight={totalHeight}
+        rowHeight={ROW_HEIGHT}
+        onScrollTo={(top) => {
+          if (containerRef.current) containerRef.current.scrollTop = top;
+        }}
+      />
     </div>
   );
 }
