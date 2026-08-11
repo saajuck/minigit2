@@ -599,6 +599,18 @@
   margin-top: 2px;
 }
 
+.diff-body {
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin-top: 6px;
+  white-space: pre-wrap;
+  color: color-mix(in srgb, var(--color-text) 75%, transparent);
+}
+
+.diff-body a {
+  color: var(--color-accent);
+}
+
 .diff-compare-header {
   display: flex;
   align-items: center;

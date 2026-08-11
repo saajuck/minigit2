@@ -2,6 +2,7 @@ import type { CommitNode, CompareResponse, DiffResponse, LocalDiffResponse } fro
 import { api } from "../api/client";
 import { ExternalLinkIcon } from "../design-system/icons";
 import type { Theme } from "../design-system/palette";
+import { linkifyMessage } from "../git/linkifyMessage";
 import { deriveCommitUrl } from "../git/remoteUrl";
 import CopyableText from "./CopyableText";
 import DiffStats from "./DiffStats";
@@ -128,7 +129,8 @@ export default function DiffPanel({
             </a>
           )}
         </div>
-        <div className="diff-subject">{commit.subject}</div>
+        <div className="diff-subject">{linkifyMessage(commit.subject, remoteUrl)}</div>
+        {diff.body && <div className="diff-body">{linkifyMessage(diff.body, remoteUrl)}</div>}
         <div className="diff-submeta">
           <img className="commit-avatar" src={commit.authorAvatarUrl} alt="" loading="lazy" />
           {commit.author} · {formatDate(commit.date)} · parents:{" "}
