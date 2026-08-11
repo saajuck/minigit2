@@ -8,6 +8,8 @@ import type {
   StatusResponse,
 } from "@minigit2/shared";
 import { ApiRequestError, api } from "./api/client";
+import { ancestorHashes } from "./search/ancestors";
+import { isQueryEmpty, parseSearchQuery } from "./search/query";
 import AddRepoDialog from "./components/AddRepoDialog";
 import BranchesDialog from "./components/BranchesDialog";
 import CommitSearch from "./components/CommitSearch";
@@ -357,19 +359,10 @@ export default function App() {
     const byHash = new Map(graph.nodes.map((n) => [n.hash, n]));
     const roots = focusedRefs.filter((r) => byHash.has(r.hash));
     if (roots.length === 0) return null;
-    const visited = new Set<string>();
-    const stack = roots.map((r) => r.hash);
-    while (stack.length > 0) {
-      const hash = stack.pop()!;
-      if (visited.has(hash)) continue;
-      visited.add(hash);
-      const node = byHash.get(hash);
-      if (!node) continue;
-      for (const parent of node.parents) {
-        if (!visited.has(parent)) stack.push(parent);
-      }
-    }
-    return visited;
+    return ancestorHashes(
+      byHash,
+      roots.map((r) => r.hash),
+    );
   }, [graph, focusedRefs]);
 
   // The graph pane renders only these — a hard filter, not a dim — so row indices need
@@ -389,20 +382,87 @@ export default function App() {
 
   const focusedNames = useMemo(() => new Set(focusedRefs.map((r) => r.name)), [focusedRefs]);
 
-  // Client-side only — the graph is already fully loaded, so filtering it never costs a
-  // network round trip. Searches within whatever branch focus currently shows: matches don't
-  // remove rows from the graph, they just get highlighted, with Enter/prev-next jumping the
-  // selection (and virtualized scroll) to each one in turn.
+  const parsedQuery = useMemo(() => parseSearchQuery(searchQuery), [searchQuery]);
+
+  // `branch:` resolves each named branch to its head commit (from the already-loaded refs) and
+  // walks ancestors client-side, same mechanism as branch focus above — no extra request. An
+  // empty set (not null) when none of the named branches were found, so the filter correctly
+  // excludes everything rather than silently matching everything.
+  const branchFilterHashes = useMemo(() => {
+    if (parsedQuery.branches.length === 0 || !graph) return null;
+    const byHash = new Map(graph.nodes.map((n) => [n.hash, n]));
+    const starts = graph.nodes
+      .filter((n) => n.refs.some((r) => parsedQuery.branches.includes(r.name)))
+      .map((n) => n.hash);
+    return ancestorHashes(byHash, starts);
+  }, [graph, parsedQuery.branches]);
+
+  // `file:` is the one operator that can't be answered from the already-loaded graph (commit
+  // nodes don't carry which files they touched) — debounced so it doesn't fire a request per
+  // keystroke, unlike every other operator which stays instant and local.
+  const [fileFilterHashes, setFileFilterHashes] = useState<Set<string> | null>(null);
+  const [fileFilterLoading, setFileFilterLoading] = useState(false);
+  useEffect(() => {
+    if (!parsedQuery.file || !activeRepoId) {
+      setFileFilterHashes(null);
+      setFileFilterLoading(false);
+      return;
+    }
+    let cancelled = false;
+    const repoId = activeRepoId;
+    const pathspec = parsedQuery.file;
+    setFileFilterLoading(true);
+    const timer = setTimeout(() => {
+      api
+        .searchCommitsByFile(repoId, pathspec)
+        .then((res) => {
+          if (!cancelled) setFileFilterHashes(new Set(res.hashes));
+        })
+        .catch(() => {
+          if (!cancelled) setFileFilterHashes(new Set());
+        })
+        .finally(() => {
+          if (!cancelled) setFileFilterLoading(false);
+        });
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [activeRepoId, parsedQuery.file]);
+
+  // Client-side only (aside from the debounced `file:` lookup above) — the graph is already
+  // fully loaded, so filtering it never costs a network round trip for the common case. Searches
+  // within whatever branch focus currently shows: matches don't remove rows from the graph, they
+  // just get highlighted, with Enter/prev-next jumping the selection (and virtualized scroll) to
+  // each one in turn.
   const matchingNodes = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return [];
-    return focusedNodes.filter(
-      (n) => n.subject.toLowerCase().includes(q) || n.author.toLowerCase().includes(q) || n.hash.includes(q),
-    );
-  }, [focusedNodes, searchQuery]);
+    if (isQueryEmpty(parsedQuery)) return [];
+    const text = parsedQuery.text.toLowerCase();
+    const author = parsedQuery.author?.toLowerCase() ?? null;
+    const after = parsedQuery.after ? new Date(parsedQuery.after) : null;
+    const before = parsedQuery.before ? new Date(parsedQuery.before) : null;
+    const afterValid = after && !Number.isNaN(after.getTime()) ? after : null;
+    const beforeValid = before && !Number.isNaN(before.getTime()) ? before : null;
+
+    return focusedNodes.filter((n) => {
+      if (
+        text &&
+        !(n.subject.toLowerCase().includes(text) || n.author.toLowerCase().includes(text) || n.hash.includes(text))
+      )
+        return false;
+      if (author && !(n.author.toLowerCase().includes(author) || n.authorEmail.toLowerCase().includes(author)))
+        return false;
+      if (afterValid && new Date(n.date) < afterValid) return false;
+      if (beforeValid && new Date(n.date) > beforeValid) return false;
+      if (branchFilterHashes && !branchFilterHashes.has(n.hash)) return false;
+      if (parsedQuery.file && (fileFilterHashes === null || !fileFilterHashes.has(n.hash))) return false;
+      return true;
+    });
+  }, [focusedNodes, parsedQuery, branchFilterHashes, fileFilterHashes]);
   const matchHashes = useMemo(
-    () => (searchQuery.trim() ? new Set(matchingNodes.map((n) => n.hash)) : null),
-    [matchingNodes, searchQuery],
+    () => (!isQueryEmpty(parsedQuery) ? new Set(matchingNodes.map((n) => n.hash)) : null),
+    [matchingNodes, parsedQuery],
   );
 
   function toggleFocusRef(hash: string, name: string) {
@@ -604,6 +664,7 @@ export default function App() {
                         query={searchQuery}
                         onQueryChange={handleSearchQueryChange}
                         matchCount={matchingNodes.length}
+                        loading={fileFilterLoading}
                         onNext={handleSearchNext}
                         onPrev={handleSearchPrev}
                       />

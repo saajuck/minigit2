@@ -12,6 +12,7 @@ import { graphRouter } from "./routes/graph";
 import { localDiffRouter } from "./routes/localDiff";
 import { reflogRouter } from "./routes/reflog";
 import { reposRouter } from "./routes/repos";
+import { searchRouter } from "./routes/search";
 import { stashRouter } from "./routes/stash";
 import { statusRouter } from "./routes/status";
 
@@ -44,6 +45,7 @@ app.use("/api/repos/:id/stash", stashRouter);
 app.use("/api/repos/:id/reflog", reflogRouter);
 app.use("/api/repos/:id/local-diff", localDiffRouter);
 app.use("/api/repos/:id/branches", branchesRouter);
+app.use("/api/repos/:id/search", searchRouter);
 
 const clientDist = resolveClientDist();
 if (existsSync(clientDist)) {

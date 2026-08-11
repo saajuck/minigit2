@@ -6,6 +6,7 @@ import type {
   DiffResponse,
   FileHotspot,
   FilePatchResponse,
+  FileSearchResponse,
   FsListResponse,
   GraphResponse,
   LocalDiffResponse,
@@ -119,5 +120,7 @@ export const api = {
   getLocalDiffPatch: (repoId: string, path: string) =>
     request<FilePatchResponse>(`/repos/${repoId}/local-diff/file?path=${encodeURIComponent(path)}`),
   getBranches: (repoId: string) => request<BranchesResponse>(`/repos/${repoId}/branches`),
+  searchCommitsByFile: (repoId: string, pathspec: string) =>
+    request<FileSearchResponse>(`/repos/${repoId}/search/files?path=${encodeURIComponent(pathspec)}`),
   fetchRemote: (repoId: string) => request<{ ok: true }>(`/repos/${repoId}/fetch`, { method: "POST" }),
 };

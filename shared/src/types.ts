@@ -177,6 +177,10 @@ export interface CheckoutResponse {
   status: StatusResponse;
 }
 
+export interface FileSearchResponse {
+  hashes: string[];
+}
+
 export interface ApiErrorBody {
   error: string;
   message: string;
