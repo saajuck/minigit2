@@ -251,6 +251,7 @@ export default function GraphView({
         viewportHeight={viewportHeight}
         totalHeight={totalHeight}
         rowHeight={ROW_HEIGHT}
+        matchHashes={matchHashes}
         onScrollTo={(top) => {
           if (containerRef.current) containerRef.current.scrollTop = top;
         }}

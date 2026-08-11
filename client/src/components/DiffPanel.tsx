@@ -124,6 +124,7 @@ export default function DiffPanel({
               title="Open this commit on the remote host"
             >
               <ExternalLinkIcon />
+              Open
             </a>
           )}
         </div>
