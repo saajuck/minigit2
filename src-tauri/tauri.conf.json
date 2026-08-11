@@ -15,7 +15,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["appimage"],
+    "targets": "all",
     "externalBin": ["binaries/minigit2-server"],
     "resources": {
       "../client/dist": "client-dist"

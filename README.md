@@ -54,9 +54,9 @@ Architecture and technical decisions: [docs/PLAN.md](docs/PLAN.md).
 
 ## Install
 
-On Ubuntu, download the AppImage from the
+On Ubuntu or Windows, download the AppImage or installer from the
 [Releases page](https://github.com/saajuck/minigit2/releases) — it opens as a normal desktop
-window, no browser tab required. Other platforms run from source. See
+window, no browser tab required. macOS and other Linux distros run from source. See
 [docs/DEPLOY.md](docs/DEPLOY.md) for details.
 
 ## Development

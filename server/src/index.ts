@@ -18,11 +18,20 @@ import { statusRouter } from "./routes/status";
 import { watchRouter } from "./routes/watch";
 
 /** Deferred so a bundled/packaged build (no real source file on disk to resolve `import.meta.url`
- * against) can skip straight to the env var instead of throwing before the check even runs. */
+ * against) can skip straight to the env var instead of throwing before the check even runs. The
+ * fallback itself is also guarded: Tauri always sets MINIGIT2_CLIENT_DIST before spawning the
+ * sidecar, but the same Node SEA binary run standalone (no Tauri host, e.g. for local debugging)
+ * has an unresolvable import.meta.url and would otherwise crash on startup before the server
+ * could even bind a port — an empty, guaranteed-nonexistent path just means static serving is
+ * skipped below instead. */
 function resolveClientDist(): string {
   if (process.env.MINIGIT2_CLIENT_DIST) return process.env.MINIGIT2_CLIENT_DIST;
-  const dir = path.dirname(fileURLToPath(import.meta.url));
-  return path.resolve(dir, "../../client/dist");
+  try {
+    const dir = path.dirname(fileURLToPath(import.meta.url));
+    return path.resolve(dir, "../../client/dist");
+  } catch {
+    return "";
+  }
 }
 
 const PORT = Number(process.env.PORT ?? 4300);
