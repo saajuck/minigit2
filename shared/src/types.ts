@@ -119,6 +119,9 @@ export interface StatusResponse {
   untracked: number;
   /** Null when detached, or the branch has no configured upstream. */
   aheadBehind: AheadBehind | null;
+  /** The "origin" remote's configured URL, exactly as git reports it (SSH or HTTPS form, not
+   * yet turned into a web URL) — null when no "origin" remote is configured. */
+  remoteUrl: string | null;
 }
 
 export interface CompareResponse {

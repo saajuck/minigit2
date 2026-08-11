@@ -735,6 +735,7 @@ export default function App() {
                     loading={diffLoading}
                     error={diffError}
                     theme={theme}
+                    remoteUrl={status?.remoteUrl ?? null}
                     onClearCompare={() => setCompareHash(null)}
                     onClearLocalDiff={() => setShowLocalDiff(false)}
                     onSelectCommit={selectCommit}

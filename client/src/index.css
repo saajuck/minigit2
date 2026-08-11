@@ -522,6 +522,22 @@
   display: inline-block;
 }
 
+.diff-hash-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.diff-remote-link {
+  display: inline-flex;
+  align-items: center;
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+
+.diff-remote-link:hover {
+  color: var(--color-accent);
+}
+
 .diff-subject {
   font-size: 14px;
   margin-top: 2px;

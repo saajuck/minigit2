@@ -6,6 +6,7 @@ export async function getRepoStatus(repoPath: string): Promise<StatusResponse> {
   const headCommit = await getHeadCommit(repoPath);
   const { staged, unstaged, untracked } = await getWorkingTreeCounts(repoPath);
   const aheadBehind = branch.detached ? null : await getAheadBehind(repoPath);
+  const remoteUrl = await getOriginUrl(repoPath);
 
   return {
     headCommit,
@@ -16,7 +17,18 @@ export async function getRepoStatus(repoPath: string): Promise<StatusResponse> {
     unstaged,
     untracked,
     aheadBehind,
+    remoteUrl,
   };
+}
+
+/** Null when there's no "origin" remote configured — a purely local repo, not an error. */
+async function getOriginUrl(repoPath: string): Promise<string | null> {
+  try {
+    const { stdout } = await runGit(repoPath, ["remote", "get-url", "origin"]);
+    return stdout.trim() || null;
+  } catch {
+    return null;
+  }
 }
 
 /** Null when there's no upstream configured (e.g. a local-only branch) — not an error. */
