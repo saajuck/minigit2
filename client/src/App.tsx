@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   CompareResponse,
   DiffResponse,
@@ -243,6 +243,40 @@ export default function App() {
     }, AUTO_REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [activeRepoId, refreshGraph, refreshStatus, refreshLocalDiff, showLocalDiff, graph]);
+
+  // Refs (not state) so the SSE effect below only reopens the connection when the repo itself
+  // changes, not on every graph/local-diff-visibility change — reconnecting the stream that
+  // often would be wasteful and would show up as connect/disconnect churn.
+  const graphRef = useRef(graph);
+  useEffect(() => {
+    graphRef.current = graph;
+  }, [graph]);
+  const showLocalDiffRef = useRef(showLocalDiff);
+  useEffect(() => {
+    showLocalDiffRef.current = showLocalDiff;
+  }, [showLocalDiff]);
+
+  // Complements the 30s poll above with a near-instant local path: the server watches this
+  // repo's .git refs (see routes/watch.ts) and pushes a "changed" event the moment something
+  // moves on disk — a commit made in another terminal, a checkout, a `git pull` run outside the
+  // app — without waiting for the next poll tick. Doesn't replace the poll's own `fetchRemote`
+  // call (a *remote* change still needs an actual fetch to become visible locally at all).
+  useEffect(() => {
+    if (!activeRepoId) return;
+    const source = new EventSource(`/api/repos/${activeRepoId}/watch`);
+    source.addEventListener("changed", () => {
+      const previousHashes = new Set((graphRef.current?.nodes ?? []).map((n) => n.hash));
+      refreshGraph(activeRepoId).then((updated) => {
+        if (updated) {
+          const newCount = updated.nodes.filter((n) => !previousHashes.has(n.hash)).length;
+          if (newCount > 0) setNewCommitsCount((count) => count + newCount);
+        }
+      });
+      refreshStatus(activeRepoId);
+      if (showLocalDiffRef.current) refreshLocalDiff(activeRepoId);
+    });
+    return () => source.close();
+  }, [activeRepoId, refreshGraph, refreshStatus, refreshLocalDiff]);
 
   useEffect(() => {
     if (!activeRepoId || !showLocalDiff) return;
