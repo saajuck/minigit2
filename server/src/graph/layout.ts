@@ -84,12 +84,21 @@ export function layoutGraph(commits: RawCommit[]): GraphLayout {
       }
       lanes[parentLane] = parentHash;
       laneOf.set(parentHash, parentLane);
+      // The first-parent edge is this commit's own branch continuing downward, so it must keep
+      // the commit's own colorGroup even where the parent is a fan-in point already claimed by a
+      // different (earlier-walked) branch — e.g. several branches rooted on the same initial
+      // commit, or two branches converging back onto a shared ancestor without a merge commit.
+      // Using the parent's colorGroup there would flip this branch's own trailing edge to
+      // whichever other branch happened to claim that ancestor first. Non-first parents (merge
+      // edges) are a different case: they represent another branch merging in, so they keep that
+      // branch's own colorGroup via the parent, exactly as before.
+      const colorGroup = i === 0 ? (colorGroupOf.get(commit.hash) as number) : (colorGroupOf.get(parentHash) as number);
       edges.push({
         from: commit.hash,
         to: parentHash,
         fromLane: lane,
         toLane: parentLane,
-        colorGroup: colorGroupOf.get(parentHash) as number,
+        colorGroup,
       });
     });
 

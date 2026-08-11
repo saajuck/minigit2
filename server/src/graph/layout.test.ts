@@ -54,7 +54,10 @@ describe("layoutGraph", () => {
 
     expect(edges).toEqual([
       { from: "A", to: "Base", fromLane: 0, toLane: 0, colorGroup: 0 },
-      { from: "B", to: "Base", fromLane: 1, toLane: 0, colorGroup: 0 },
+      // B's own colorGroup (1), not Base's (0) — the edge is B's branch continuing down into the
+      // shared ancestor, so it must keep B's color rather than switching to whichever sibling
+      // branch claimed Base first.
+      { from: "B", to: "Base", fromLane: 1, toLane: 0, colorGroup: 1 },
     ]);
   });
 
@@ -79,7 +82,8 @@ describe("layoutGraph", () => {
       { from: "M", to: "A", fromLane: 0, toLane: 0, colorGroup: 0 },
       { from: "M", to: "B", fromLane: 0, toLane: 1, colorGroup: 1 },
       { from: "A", to: "Base", fromLane: 0, toLane: 0, colorGroup: 0 },
-      { from: "B", to: "Base", fromLane: 1, toLane: 0, colorGroup: 0 },
+      // B's own colorGroup (1), not Base's (0) — same fan-in case as the plain fork above.
+      { from: "B", to: "Base", fromLane: 1, toLane: 0, colorGroup: 1 },
     ]);
   });
 
@@ -110,6 +114,27 @@ describe("layoutGraph", () => {
     }
     expect(byHash.get("f2")!.colorGroup).not.toBe(mainlineGroup);
     expect(byHash.get("f1")!.colorGroup).not.toBe(mainlineGroup);
+  });
+
+  it("colors each branch's edge into the root by that branch's own colorGroup, not the root's", () => {
+    // Three independent branches (A, B, C) all fork directly off the same root commit — the
+    // shape from the bug report: every branch's line into the root rendered in the root's own
+    // color (whichever branch claimed it first) instead of each branch's own color.
+    const commits = [commit("A", ["Root"]), commit("B", ["Root"]), commit("C", ["Root"]), commit("Root", [])];
+    const { nodes, edges } = layoutGraph(commits);
+    const byHash = new Map(nodes.map((n) => [n.hash, n]));
+
+    const rootGroup = byHash.get("Root")!.colorGroup;
+    const edgeByFrom = new Map(edges.map((e) => [e.from, e]));
+    for (const hash of ["A", "B", "C"]) {
+      const ownGroup = byHash.get(hash)!.colorGroup;
+      expect(edgeByFrom.get(hash)!.colorGroup).toBe(ownGroup);
+    }
+    // At least one of the three necessarily shares the root's group (whichever claimed it first);
+    // the other two must not have been coerced into that same color.
+    const ownGroups = ["A", "B", "C"].map((h) => byHash.get(h)!.colorGroup);
+    expect(new Set(ownGroups).size).toBe(3);
+    expect(ownGroups).toContain(rootGroup);
   });
 
   it("recycles a freed lane for an unrelated later branch", () => {
