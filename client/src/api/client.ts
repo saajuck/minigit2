@@ -4,6 +4,7 @@ import type {
   CheckoutResponse,
   CompareResponse,
   DiffResponse,
+  FileHotspot,
   FilePatchResponse,
   FsListResponse,
   GraphResponse,
@@ -45,6 +46,9 @@ const SILENT_CODES = new Set([
   // Fetching from remotes is opportunistic (runs on every refresh) — offline, no remote
   // configured, or a missing credential are all routine, not something to alarm the user with.
   "fetch_error",
+  // Hotspot stats are fetched automatically for every file in a diff, not user-triggered — a
+  // failure just means that one file's badge doesn't show, not worth a toast.
+  "hotspot_error",
 ]);
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -91,6 +95,8 @@ export const api = {
     request<FilePatchResponse>(`/repos/${repoId}/commits/${hash}/diff/file?path=${encodeURIComponent(path)}`),
   getFileBlame: (repoId: string, hash: string, path: string) =>
     request<BlameResponse>(`/repos/${repoId}/commits/${hash}/blame?path=${encodeURIComponent(path)}`),
+  getFileHotspot: (repoId: string, hash: string, path: string) =>
+    request<FileHotspot>(`/repos/${repoId}/commits/${hash}/hotspot?path=${encodeURIComponent(path)}`),
   getStatus: (repoId: string) => request<StatusResponse>(`/repos/${repoId}/status`),
   checkout: (repoId: string, ref: string) =>
     request<CheckoutResponse>(`/repos/${repoId}/checkout`, {

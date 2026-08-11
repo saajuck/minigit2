@@ -2,6 +2,7 @@ import { Router, type Response } from "express";
 import { getFileBlame } from "../git/blame";
 import { getCommitFileList, getCommitFilePatch } from "../git/diff";
 import { isMissingObjectError } from "../git/errorClassification";
+import { getFileHotspot } from "../git/hotspot";
 import { resolveRepo } from "../middleware/resolveRepo";
 
 export const diffRouter = Router({ mergeParams: true });
@@ -37,6 +38,23 @@ diffRouter.get("/:hash/diff/file", resolveRepo, async (req, res) => {
     res.json({ path: filePath, patch });
   } catch (err) {
     respondGitError(res, err);
+  }
+});
+
+diffRouter.get("/:hash/hotspot", resolveRepo, async (req, res) => {
+  const filePath = req.query.path;
+  if (typeof filePath !== "string" || filePath.trim() === "") {
+    res.status(400).json({ error: "invalid_path", message: "path is required" });
+    return;
+  }
+  try {
+    const hotspot = await getFileHotspot(req.repo!.path, filePath);
+    res.json(hotspot);
+  } catch (err) {
+    // Own error code (not the shared "git_error") — fetched automatically for every file in a
+    // diff, not user-triggered, so a failure here shouldn't toast (same reasoning as the
+    // opportunistic background remote fetch's "fetch_error").
+    res.status(500).json({ error: "hotspot_error", message: (err as Error).message });
   }
 });
 
