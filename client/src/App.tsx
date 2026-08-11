@@ -67,6 +67,17 @@ export default function App() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [newCommitsCount, setNewCommitsCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
+  // The input itself stays instant (searchQuery drives its value directly) — this is what
+  // actually feeds the query parser and, downstream, the graph filter/highlight/minimap-tick
+  // recompute across potentially thousands of commits. Debounced so a fast typist doesn't
+  // trigger that full recompute-and-rerender cascade on every single keystroke, most of which
+  // are throwaway intermediate states (typing "author:" alone would otherwise briefly match
+  // "not empty" against nothing meaningful, "a" alone would match almost every row, etc).
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearchQuery(searchQuery), 200);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
   const [searchCursor, setSearchCursor] = useState(-1);
   const [showLocalDiff, setShowLocalDiff] = useState(false);
   const [localDiff, setLocalDiff] = useState<LocalDiffResponse | null>(null);
@@ -416,7 +427,7 @@ export default function App() {
 
   const focusedNames = useMemo(() => new Set(focusedRefs.map((r) => r.name)), [focusedRefs]);
 
-  const parsedQuery = useMemo(() => parseSearchQuery(searchQuery), [searchQuery]);
+  const parsedQuery = useMemo(() => parseSearchQuery(debouncedSearchQuery), [debouncedSearchQuery]);
 
   // `branch:` resolves each named branch to its head commit (from the already-loaded refs) and
   // walks ancestors client-side, same mechanism as branch focus above — no extra request. An
@@ -432,8 +443,10 @@ export default function App() {
   }, [graph, parsedQuery.branches]);
 
   // `file:` is the one operator that can't be answered from the already-loaded graph (commit
-  // nodes don't carry which files they touched) — debounced so it doesn't fire a request per
-  // keystroke, unlike every other operator which stays instant and local.
+  // nodes don't carry which files they touched), so it's the one that needs a network
+  // round-trip. parsedQuery already only updates ~200ms after typing settles (see
+  // debouncedSearchQuery above), so this fires right away rather than debouncing a second time
+  // on top of that.
   const [fileFilterHashes, setFileFilterHashes] = useState<Set<string> | null>(null);
   const [fileFilterLoading, setFileFilterLoading] = useState(false);
   useEffect(() => {
@@ -443,25 +456,20 @@ export default function App() {
       return;
     }
     let cancelled = false;
-    const repoId = activeRepoId;
-    const pathspec = parsedQuery.file;
     setFileFilterLoading(true);
-    const timer = setTimeout(() => {
-      api
-        .searchCommitsByFile(repoId, pathspec)
-        .then((res) => {
-          if (!cancelled) setFileFilterHashes(new Set(res.hashes));
-        })
-        .catch(() => {
-          if (!cancelled) setFileFilterHashes(new Set());
-        })
-        .finally(() => {
-          if (!cancelled) setFileFilterLoading(false);
-        });
-    }, 300);
+    api
+      .searchCommitsByFile(activeRepoId, parsedQuery.file)
+      .then((res) => {
+        if (!cancelled) setFileFilterHashes(new Set(res.hashes));
+      })
+      .catch(() => {
+        if (!cancelled) setFileFilterHashes(new Set());
+      })
+      .finally(() => {
+        if (!cancelled) setFileFilterLoading(false);
+      });
     return () => {
       cancelled = true;
-      clearTimeout(timer);
     };
   }, [activeRepoId, parsedQuery.file]);
 
