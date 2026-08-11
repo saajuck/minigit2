@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import type { BlameResponse, FileDiffSummary } from "@minigit2/shared";
+import type { BlameResponse, FileDiffSummary, FileHotspot } from "@minigit2/shared";
 import type { Theme } from "../design-system/palette";
 import { ChevronRightIcon, FolderTreeIcon, ListIcon } from "../design-system/icons";
 import FileDiff from "./FileDiff";
@@ -12,12 +12,13 @@ interface Props {
   theme: Theme;
   fetchPatch: (file: FileDiffSummary) => () => Promise<string>;
   fetchBlame?: (file: FileDiffSummary) => () => Promise<BlameResponse>;
+  fetchHotspot?: (file: FileDiffSummary) => () => Promise<FileHotspot>;
   onSelectCommit?: (hash: string) => void;
 }
 
 /** Wraps the flat file list shared by every diff mode (single commit, compare, local changes),
  * with a GitLab-style toggle between a flat list and a directory tree. */
-export default function FileChangeList({ files, theme, fetchPatch, fetchBlame, onSelectCommit }: Props) {
+export default function FileChangeList({ files, theme, fetchPatch, fetchBlame, fetchHotspot, onSelectCommit }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>(() =>
     localStorage.getItem(VIEW_MODE_KEY) === "tree" ? "tree" : "list",
   );
@@ -35,6 +36,7 @@ export default function FileChangeList({ files, theme, fetchPatch, fetchBlame, o
         theme={theme}
         fetchPatch={fetchPatch(file)}
         fetchBlame={fetchBlame?.(file)}
+        fetchHotspot={fetchHotspot?.(file)}
         onSelectCommit={onSelectCommit}
       />
     );

@@ -38,8 +38,16 @@ async function getFirstParent(repoPath: string, hash: string): Promise<string | 
 }
 
 async function diffNameStatus(repoPath: string, base: string, head: string): Promise<FileDiffSummary[]> {
-  const { stdout } = await runGit(repoPath, ["diff", "--no-color", "--name-status", base, head]);
-  return parseNameStatus(stdout);
+  const [{ stdout: nameStatusOut }, { stdout: numstatOut }] = await Promise.all([
+    runGit(repoPath, ["diff", "--no-color", "--name-status", base, head]),
+    runGit(repoPath, ["diff", "--no-color", "-z", "--numstat", base, head]),
+  ]);
+  const files = parseNameStatus(nameStatusOut);
+  const statsByPath = new Map(parseNumstat(numstatOut).map((s) => [s.path, s]));
+  return files.map((f) => {
+    const stats = statsByPath.get(f.path);
+    return { ...f, additions: stats?.additions ?? 0, deletions: stats?.deletions ?? 0 };
+  });
 }
 
 async function diffFilePatch(repoPath: string, base: string, head: string, filePath: string): Promise<string> {
@@ -47,7 +55,13 @@ async function diffFilePatch(repoPath: string, base: string, head: string, fileP
   return stdout.trimEnd();
 }
 
-export function parseNameStatus(output: string): FileDiffSummary[] {
+export interface NameStatusEntry {
+  path: string;
+  oldPath?: string;
+  status: FileStatus;
+}
+
+export function parseNameStatus(output: string): NameStatusEntry[] {
   return output
     .split("\n")
     .map((line) => line.trim())
@@ -65,4 +79,39 @@ export function parseNameStatus(output: string): FileDiffSummary[] {
       if (code.startsWith("D")) return { path, status: "deleted" as FileStatus };
       return { path, status: "modified" as FileStatus };
     });
+}
+
+export interface NumstatEntry {
+  path: string;
+  additions: number;
+  deletions: number;
+}
+
+/** Parses `git diff -z --numstat` output. `-z` NUL-delimits records and, critically, splits a
+ * rename into three NUL-separated fields (stat header with an empty trailing path, then the old
+ * path, then the new path) instead of git's default `old => new` abbreviation — which elides a
+ * shared prefix/suffix in a way that isn't safely reversible back into a real path. */
+export function parseNumstat(output: string): NumstatEntry[] {
+  const tokens = output.split("\0").filter((t) => t !== "");
+  const entries: NumstatEntry[] = [];
+  let i = 0;
+  while (i < tokens.length) {
+    const match = /^(\d+|-)\t(\d+|-)\t(.*)$/s.exec(tokens[i]!);
+    if (!match) {
+      i++;
+      continue;
+    }
+    const additions = match[1] === "-" ? 0 : Number(match[1]);
+    const deletions = match[2] === "-" ? 0 : Number(match[2]);
+    const inlinePath = match[3]!;
+    if (inlinePath.length > 0) {
+      entries.push({ path: inlinePath, additions, deletions });
+      i += 1;
+    } else {
+      const newPath = tokens[i + 2];
+      if (newPath !== undefined) entries.push({ path: newPath, additions, deletions });
+      i += 3;
+    }
+  }
+  return entries;
 }

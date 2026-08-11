@@ -2,6 +2,7 @@ import type { CommitNode, CompareResponse, DiffResponse, LocalDiffResponse } fro
 import { api } from "../api/client";
 import type { Theme } from "../design-system/palette";
 import CopyableText from "./CopyableText";
+import DiffStats from "./DiffStats";
 import FileChangeList from "./FileChangeList";
 
 interface Props {
@@ -114,14 +115,18 @@ export default function DiffPanel({
       {diff.files.length === 0 ? (
         <p className="muted">No file changes.</p>
       ) : (
-        <FileChangeList
-          key={diff.hash}
-          files={diff.files}
-          theme={theme}
-          fetchPatch={(file) => () => api.getFilePatch(repoId, diff.hash, file.path).then((r) => r.patch)}
-          fetchBlame={(file) => () => api.getFileBlame(repoId, diff.hash, file.path)}
-          onSelectCommit={onSelectCommit}
-        />
+        <>
+          <DiffStats files={diff.files} theme={theme} />
+          <FileChangeList
+            key={diff.hash}
+            files={diff.files}
+            theme={theme}
+            fetchPatch={(file) => () => api.getFilePatch(repoId, diff.hash, file.path).then((r) => r.patch)}
+            fetchBlame={(file) => () => api.getFileBlame(repoId, diff.hash, file.path)}
+            fetchHotspot={(file) => () => api.getFileHotspot(repoId, diff.hash, file.path)}
+            onSelectCommit={onSelectCommit}
+          />
+        </>
       )}
     </div>
   );

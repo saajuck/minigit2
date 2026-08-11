@@ -8,7 +8,7 @@ const EMPTY_TREE_HASH = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
 export async function getLocalDiffFileList(repoPath: string): Promise<FileDiffSummary[]> {
   const base = await resolveDiffBase(repoPath);
   const { stdout } = await runGit(repoPath, ["diff", "--no-color", "--name-status", base]);
-  const tracked = parseNameStatus(stdout);
+  const tracked = parseNameStatus(stdout).map((f) => ({ ...f, additions: 0, deletions: 0 }));
   const untracked = await getUntrackedFiles(repoPath);
   return [...tracked, ...untracked];
 }
@@ -43,7 +43,7 @@ async function getUntrackedFiles(repoPath: string): Promise<FileDiffSummary[]> {
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
-    .map((path) => ({ path, status: "untracked" as FileStatus }));
+    .map((path) => ({ path, status: "untracked" as FileStatus, additions: 0, deletions: 0 }));
 }
 
 async function isFileUntracked(repoPath: string, filePath: string): Promise<boolean> {

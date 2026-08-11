@@ -66,6 +66,15 @@ export interface FileDiffSummary {
   path: string;
   oldPath?: string;
   status: FileStatus;
+  additions: number;
+  deletions: number;
+}
+
+/** Whole-history activity for a single file path, independent of which commit it's shown
+ * alongside — "how hot is this file overall", not scoped to any one diff. */
+export interface FileHotspot {
+  commits: number;
+  authors: number;
 }
 
 export interface DiffResponse {

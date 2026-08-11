@@ -1,5 +1,5 @@
-import { useState, type CSSProperties } from "react";
-import type { BlameResponse, FileDiffSummary } from "@minigit2/shared";
+import { useEffect, useState, type CSSProperties } from "react";
+import type { BlameResponse, FileDiffSummary, FileHotspot } from "@minigit2/shared";
 import { getPalette, type LaneColor, type Theme } from "../design-system/palette";
 import { ChevronRightIcon } from "../design-system/icons";
 
@@ -13,6 +13,9 @@ interface Props {
   /** Only provided in single-commit diff mode (one concrete ref to blame against) — its presence
    * is what decides whether the Diff/Blame toggle renders at all. */
   fetchBlame?: () => Promise<BlameResponse>;
+  /** Same scoping as fetchBlame. Fetched automatically on mount (not gated behind expanding the
+   * file) so the whole file list is scannable for "what's hot" at a glance. */
+  fetchHotspot?: () => Promise<FileHotspot>;
   onSelectCommit?: (hash: string) => void;
 }
 
@@ -24,7 +27,15 @@ const STATUS_META: Record<FileDiffSummary["status"], { letter: string; laneIndex
   untracked: { letter: "U", laneIndex: 4 },
 };
 
-export default function FileDiff({ file, theme, displayPath, fetchPatch, fetchBlame, onSelectCommit }: Props) {
+export default function FileDiff({
+  file,
+  theme,
+  displayPath,
+  fetchPatch,
+  fetchBlame,
+  fetchHotspot,
+  onSelectCommit,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<"diff" | "blame">("diff");
   const [patch, setPatch] = useState<string | null>(null);
@@ -33,6 +44,22 @@ export default function FileDiff({ file, theme, displayPath, fetchPatch, fetchBl
   const [blame, setBlame] = useState<BlameResponse | null>(null);
   const [blameLoading, setBlameLoading] = useState(false);
   const [blameError, setBlameError] = useState<string | null>(null);
+  const [hotspot, setHotspot] = useState<FileHotspot | null>(null);
+
+  useEffect(() => {
+    if (!fetchHotspot) return;
+    let cancelled = false;
+    fetchHotspot()
+      .then((data) => {
+        if (!cancelled) setHotspot(data);
+      })
+      .catch(() => {
+        // best-effort enrichment — a failed fetch just means no badge, not a broken file list
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const pal = getPalette(theme);
   const meta = STATUS_META[file.status];
@@ -88,6 +115,11 @@ export default function FileDiff({ file, theme, displayPath, fetchPatch, fetchBl
           <span className="file-diff-path" title={file.path}>
             {displayPath ?? file.path}
           </span>
+          {hotspot && (
+            <span className="file-diff-hotspot" title={`${hotspot.commits} commits · ${hotspot.authors} authors, all time`}>
+              {hotspot.commits} · {hotspot.authors}
+            </span>
+          )}
           <span className="file-diff-chevron" style={{ transform: `rotate(${open ? 90 : 0}deg)` }}>
             <ChevronRightIcon />
           </span>
