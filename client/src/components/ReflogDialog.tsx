@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import type { ReflogEntry } from "@minigit2/shared";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import CopyableText from "./CopyableText";
 
@@ -9,21 +8,18 @@ interface Props {
 }
 
 export default function ReflogDialog({ repoId, onClose }: Props) {
-  const [entries, setEntries] = useState<ReflogEntry[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    api
-      .getReflog(repoId)
-      .then((data) => setEntries(data.entries))
-      .catch((err) => setError((err as Error).message));
-  }, [repoId]);
+  const reflogQuery = useQuery({
+    queryKey: ["reflog", repoId],
+    queryFn: ({ signal }) => api.getReflog(repoId, signal),
+  });
+  const entries = reflogQuery.data?.entries ?? null;
+  const error = reflogQuery.error as Error | null;
 
   return (
     <div className="dialog-backdrop" onClick={onClose}>
       <div className="dialog browser-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-title">Reflog</div>
-        {error && <p className="error">{error}</p>}
+        {error && <p className="error">{error.message}</p>}
         {!error && entries === null && <p className="muted">Loading…</p>}
         {!error && entries !== null && entries.length === 0 && <p className="muted">No reflog entries.</p>}
         {!error && entries !== null && entries.length > 0 && (

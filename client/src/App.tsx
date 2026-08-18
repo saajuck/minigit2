@@ -1,12 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type {
-  CompareResponse,
-  DiffResponse,
-  GraphResponse,
-  LocalDiffResponse,
-  RepoSummary,
-  StatusResponse,
-} from "@minigit2/shared";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { GraphResponse, RepoSummary } from "@minigit2/shared";
 import { ApiRequestError, api } from "./api/client";
 import { ancestorHashes } from "./search/ancestors";
 import { isQueryEmpty, parseSearchQuery } from "./search/query";
@@ -45,24 +39,20 @@ const MIN_LANE_WIDTH = 40;
 const MAX_LANE_WIDTH = 400;
 const AUTO_REFRESH_INTERVAL_MS = 30_000;
 
+// A commit's diff/compare content can never change once the hash exists — safe to cache
+// indefinitely (the one case where the underlying commit truly disappears, a rebase/amend
+// upstream, surfaces as a commit_not_found error and is handled separately, not as staleness).
+const IMMUTABLE_STALE_TIME = Infinity;
+
 export default function App() {
   const [theme, toggleTheme] = useTheme();
-  const [repos, setRepos] = useState<RepoSummary[]>([]);
+  const queryClient = useQueryClient();
   const [activeRepoId, setActiveRepoId] = useState<string | null>(() =>
     localStorage.getItem(ACTIVE_REPO_KEY),
   );
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [addRepoOpen, setAddRepoOpen] = useState(false);
-  const [graph, setGraph] = useState<GraphResponse | null>(null);
-  const [graphLoading, setGraphLoading] = useState(false);
-  const [graphError, setGraphError] = useState<string | null>(null);
   const [selectedHash, setSelectedHash] = useState<string | null>(null);
   const [compareHash, setCompareHash] = useState<string | null>(null);
-  const [diff, setDiff] = useState<DiffResponse | null>(null);
-  const [compare, setCompare] = useState<CompareResponse | null>(null);
-  const [diffLoading, setDiffLoading] = useState(false);
-  const [diffError, setDiffError] = useState<string | null>(null);
-  const [status, setStatus] = useState<StatusResponse | null>(null);
   const [pendingCheckoutRef, setPendingCheckoutRef] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [newCommitsCount, setNewCommitsCount] = useState(0);
@@ -80,7 +70,6 @@ export default function App() {
   }, [searchQuery]);
   const [searchCursor, setSearchCursor] = useState(-1);
   const [showLocalDiff, setShowLocalDiff] = useState(false);
-  const [localDiff, setLocalDiff] = useState<LocalDiffResponse | null>(null);
   const [stashOpen, setStashOpen] = useState(false);
   const [reflogOpen, setReflogOpen] = useState(false);
   const [branchesOpen, setBranchesOpen] = useState(false);
@@ -110,22 +99,21 @@ export default function App() {
     setGraphLaneWidth((w) => Math.min(MAX_LANE_WIDTH, Math.max(MIN_LANE_WIDTH, w + deltaX)));
   }
 
-  const refreshRepos = useCallback(async () => {
-    try {
-      const { repos } = await api.listRepos();
-      setRepos(repos);
-      setActiveRepoId((current) => {
-        if (current && repos.some((r) => r.id === current)) return current;
-        return repos[0]?.id ?? null;
-      });
-    } catch (err) {
-      setLoadError((err as Error).message);
-    }
-  }, []);
+  const reposQuery = useQuery({
+    queryKey: ["repos"],
+    queryFn: ({ signal }) => api.listRepos(signal).then((r) => r.repos),
+  });
+  const repos = useMemo(() => reposQuery.data ?? [], [reposQuery.data]);
 
+  // Keep the active repo pointed at something real once the list loads: the id from
+  // localStorage might no longer exist, or nothing may be selected yet.
   useEffect(() => {
-    refreshRepos();
-  }, [refreshRepos]);
+    if (!reposQuery.data) return;
+    setActiveRepoId((current) => {
+      if (current && reposQuery.data.some((r) => r.id === current)) return current;
+      return reposQuery.data[0]?.id ?? null;
+    });
+  }, [reposQuery.data]);
 
   useEffect(() => {
     if (activeRepoId) {
@@ -135,62 +123,74 @@ export default function App() {
     }
   }, [activeRepoId]);
 
+  const addRepoMutation = useMutation({ mutationFn: (path: string) => api.addRepo(path) });
   async function handleAddRepo(path: string) {
-    const { repo } = await api.addRepo(path);
-    setRepos((prev) => [...prev, repo]);
+    const { repo } = await addRepoMutation.mutateAsync(path);
+    queryClient.setQueryData<RepoSummary[]>(["repos"], (old) => [...(old ?? []), repo]);
     setActiveRepoId(repo.id);
   }
 
+  const removeRepoMutation = useMutation({ mutationFn: (id: string) => api.removeRepo(id) });
   async function handleRemoveRepo(id: string) {
-    await api.removeRepo(id);
-    setRepos((prev) => prev.filter((r) => r.id !== id));
+    await removeRepoMutation.mutateAsync(id);
+    queryClient.setQueryData<RepoSummary[]>(["repos"], (old) => old?.filter((r) => r.id !== id));
     setActiveRepoId((current) => (current === id ? null : current));
   }
 
   const activeRepo = repos.find((r) => r.id === activeRepoId) ?? null;
 
-  const refreshGraph = useCallback(async (repoId: string): Promise<GraphResponse | null> => {
-    setGraphLoading(true);
-    try {
-      const data = await api.getGraph(repoId);
-      setGraph(data);
-      setGraphError(null);
-      return data;
-    } catch (err) {
-      setGraphError((err as Error).message);
-      return null;
-    } finally {
-      setGraphLoading(false);
-    }
-  }, []);
+  const graphQuery = useQuery({
+    queryKey: ["graph", activeRepoId],
+    queryFn: ({ signal }) => api.getGraph(activeRepoId!, signal),
+    enabled: !!activeRepoId,
+  });
+  const graph = graphQuery.data ?? null;
 
-  const refreshStatus = useCallback(async (repoId: string) => {
-    try {
-      setStatus(await api.getStatus(repoId));
-    } catch {
-      setStatus(null);
-    }
-  }, []);
+  const statusQuery = useQuery({
+    queryKey: ["status", activeRepoId],
+    queryFn: ({ signal }) => api.getStatus(activeRepoId!, signal),
+    enabled: !!activeRepoId,
+  });
+  const status = statusQuery.data ?? null;
 
-  const refreshLocalDiff = useCallback(async (repoId: string) => {
-    try {
-      setLocalDiff(await api.getLocalDiff(repoId));
-    } catch {
-      setLocalDiff(null);
-    }
-  }, []);
+  // Refetches the graph and folds in the "how many commits are new" banner count — shared by
+  // the 30s poll and the SSE watch below, the two paths that refresh in the background without
+  // the user having explicitly asked (a manual Refresh click resets the banner outright instead,
+  // see its own handler further down).
+  const refetchGraphWithNewCommitsCount = useCallback(
+    async (repoId: string) => {
+      const previous = queryClient.getQueryData<GraphResponse>(["graph", repoId]);
+      const previousHashes = new Set((previous?.nodes ?? []).map((n) => n.hash));
+      let updated: GraphResponse | null = null;
+      try {
+        updated = await queryClient.fetchQuery({
+          queryKey: ["graph", repoId],
+          queryFn: ({ signal }) => api.getGraph(repoId, signal),
+        });
+      } catch {
+        updated = null;
+      }
+      if (updated) {
+        const newCount = updated.nodes.filter((n) => !previousHashes.has(n.hash)).length;
+        if (newCount > 0) setNewCommitsCount((count) => count + newCount);
+      }
+    },
+    [queryClient],
+  );
 
   // The selected/compared commit fell out of the repo between the graph loading and the click —
   // most often a rebase/amend/force-push upstream combined with the auto-refresh's
-  // `git fetch --prune`. Recover the same way stale branch-focus is handled: drop the stale
-  // selection and reload the graph so it no longer offers that commit.
-  function recoverFromStaleCommit(repoId: string) {
-    setSelectedHash(null);
-    setCompareHash(null);
-    setDiffError(null);
-    showToast("That commit is no longer in the repository — refreshing the graph.");
-    refreshGraph(repoId);
-  }
+  // `git fetch --prune`. Recover by dropping the stale selection and reloading the graph so it no
+  // longer offers that commit.
+  const recoverFromStaleCommit = useCallback(
+    (repoId: string) => {
+      setSelectedHash(null);
+      setCompareHash(null);
+      showToast("That commit is no longer in the repository — refreshing the graph.");
+      queryClient.invalidateQueries({ queryKey: ["graph", repoId] });
+    },
+    [queryClient],
+  );
 
   function selectCommit(hash: string) {
     setSelectedHash(hash);
@@ -221,51 +221,33 @@ export default function App() {
   useEffect(() => {
     setSelectedHash(null);
     setCompareHash(null);
-    setDiff(null);
     setCheckoutError(null);
     setPendingCheckoutRef(null);
     setNewCommitsCount(0);
     setSearchQuery("");
     setSearchCursor(-1);
     setShowLocalDiff(false);
-    setLocalDiff(null);
     setFocusedRefs([]);
-    if (!activeRepoId) {
-      setGraph(null);
-      setStatus(null);
-      return;
-    }
-    refreshGraph(activeRepoId);
-    refreshStatus(activeRepoId);
-  }, [activeRepoId, refreshGraph, refreshStatus]);
+  }, [activeRepoId]);
 
-  useEffect(() => {
-    if (!activeRepoId) return;
-    const interval = setInterval(async () => {
-      const previousHashes = new Set((graph?.nodes ?? []).map((n) => n.hash));
-      await api.fetchRemote(activeRepoId).catch(() => {});
-      const updated = await refreshGraph(activeRepoId);
-      refreshStatus(activeRepoId);
-      if (showLocalDiff) refreshLocalDiff(activeRepoId);
-      if (updated) {
-        const newCount = updated.nodes.filter((n) => !previousHashes.has(n.hash)).length;
-        if (newCount > 0) setNewCommitsCount((count) => count + newCount);
-      }
-    }, AUTO_REFRESH_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, [activeRepoId, refreshGraph, refreshStatus, refreshLocalDiff, showLocalDiff, graph]);
-
-  // Refs (not state) so the SSE effect below only reopens the connection when the repo itself
-  // changes, not on every graph/local-diff-visibility change — reconnecting the stream that
-  // often would be wasteful and would show up as connect/disconnect churn.
-  const graphRef = useRef(graph);
-  useEffect(() => {
-    graphRef.current = graph;
-  }, [graph]);
+  // Refs (not state) so the interval/SSE effects below only reopen when the repo itself changes,
+  // not on every showLocalDiff toggle — tearing either down and recreating it that often would be
+  // wasteful and, for the SSE connection, would show up as connect/disconnect churn.
   const showLocalDiffRef = useRef(showLocalDiff);
   useEffect(() => {
     showLocalDiffRef.current = showLocalDiff;
   }, [showLocalDiff]);
+
+  useEffect(() => {
+    if (!activeRepoId) return;
+    const interval = setInterval(async () => {
+      await api.fetchRemote(activeRepoId).catch(() => {});
+      await refetchGraphWithNewCommitsCount(activeRepoId);
+      queryClient.invalidateQueries({ queryKey: ["status", activeRepoId] });
+      if (showLocalDiffRef.current) queryClient.invalidateQueries({ queryKey: ["localDiff", activeRepoId] });
+    }, AUTO_REFRESH_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [activeRepoId, refetchGraphWithNewCommitsCount, queryClient]);
 
   // Complements the 30s poll above with a near-instant local path: the server watches this
   // repo's .git refs (see routes/watch.ts) and pushes a "changed" event the moment something
@@ -276,97 +258,42 @@ export default function App() {
     if (!activeRepoId) return;
     const source = new EventSource(`/api/repos/${activeRepoId}/watch`);
     source.addEventListener("changed", () => {
-      const previousHashes = new Set((graphRef.current?.nodes ?? []).map((n) => n.hash));
-      refreshGraph(activeRepoId).then((updated) => {
-        if (updated) {
-          const newCount = updated.nodes.filter((n) => !previousHashes.has(n.hash)).length;
-          if (newCount > 0) setNewCommitsCount((count) => count + newCount);
-        }
-      });
-      refreshStatus(activeRepoId);
-      if (showLocalDiffRef.current) refreshLocalDiff(activeRepoId);
+      refetchGraphWithNewCommitsCount(activeRepoId);
+      queryClient.invalidateQueries({ queryKey: ["status", activeRepoId] });
+      if (showLocalDiffRef.current) queryClient.invalidateQueries({ queryKey: ["localDiff", activeRepoId] });
     });
     return () => source.close();
-  }, [activeRepoId, refreshGraph, refreshStatus, refreshLocalDiff]);
+  }, [activeRepoId, refetchGraphWithNewCommitsCount, queryClient]);
 
-  useEffect(() => {
-    if (!activeRepoId || !showLocalDiff) return;
-    let cancelled = false;
-    setDiffLoading(true);
-    setDiffError(null);
-    api
-      .getLocalDiff(activeRepoId)
-      .then((data) => {
-        if (!cancelled) setLocalDiff(data);
-      })
-      .catch((err) => {
-        if (!cancelled) setDiffError((err as Error).message);
-      })
-      .finally(() => {
-        if (!cancelled) setDiffLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeRepoId, showLocalDiff]);
+  const localDiffQuery = useQuery({
+    queryKey: ["localDiff", activeRepoId],
+    queryFn: ({ signal }) => api.getLocalDiff(activeRepoId!, signal),
+    enabled: !!activeRepoId && showLocalDiff,
+  });
 
+  const diffQuery = useQuery({
+    queryKey: ["diff", activeRepoId, selectedHash],
+    queryFn: ({ signal }) => api.getDiff(activeRepoId!, selectedHash!, signal),
+    enabled: !!activeRepoId && !!selectedHash && !compareHash,
+    staleTime: IMMUTABLE_STALE_TIME,
+  });
+
+  const compareQuery = useQuery({
+    queryKey: ["compare", activeRepoId, selectedHash, compareHash],
+    queryFn: ({ signal }) => api.compare(activeRepoId!, selectedHash!, compareHash!, signal),
+    enabled: !!activeRepoId && !!selectedHash && !!compareHash,
+    staleTime: IMMUTABLE_STALE_TIME,
+  });
+
+  // A stale selection can 404 on either query depending on mode — recover the same way
+  // regardless of which one hit it.
   useEffect(() => {
-    if (!activeRepoId || !selectedHash || compareHash) {
-      setDiff(null);
-      return;
+    if (!activeRepoId) return;
+    const err = compareHash ? compareQuery.error : diffQuery.error;
+    if (err instanceof ApiRequestError && err.code === "commit_not_found") {
+      recoverFromStaleCommit(activeRepoId);
     }
-    let cancelled = false;
-    setDiffLoading(true);
-    setDiffError(null);
-    api
-      .getDiff(activeRepoId, selectedHash)
-      .then((data) => {
-        if (!cancelled) setDiff(data);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        if (err instanceof ApiRequestError && err.code === "commit_not_found") {
-          recoverFromStaleCommit(activeRepoId);
-        } else {
-          setDiffError((err as Error).message);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setDiffLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeRepoId, selectedHash, compareHash]);
-
-  useEffect(() => {
-    if (!activeRepoId || !selectedHash || !compareHash) {
-      setCompare(null);
-      return;
-    }
-    let cancelled = false;
-    setDiffLoading(true);
-    setDiffError(null);
-    api
-      .compare(activeRepoId, selectedHash, compareHash)
-      .then((data) => {
-        if (!cancelled) setCompare(data);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        if (err instanceof ApiRequestError && err.code === "commit_not_found") {
-          recoverFromStaleCommit(activeRepoId);
-        } else {
-          setDiffError((err as Error).message);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setDiffLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeRepoId, selectedHash, compareHash]);
+  }, [activeRepoId, compareHash, diffQuery.error, compareQuery.error, recoverFromStaleCommit]);
 
   async function doCheckout(ref: string) {
     if (!activeRepoId) return;
@@ -374,7 +301,10 @@ export default function App() {
     try {
       await api.checkout(activeRepoId, ref);
       setPendingCheckoutRef(null);
-      await Promise.all([refreshGraph(activeRepoId), refreshStatus(activeRepoId)]);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["graph", activeRepoId] }),
+        queryClient.invalidateQueries({ queryKey: ["status", activeRepoId] }),
+      ]);
     } catch (err) {
       setPendingCheckoutRef(null);
       if (err instanceof ApiRequestError) {
@@ -447,31 +377,13 @@ export default function App() {
   // round-trip. parsedQuery already only updates ~200ms after typing settles (see
   // debouncedSearchQuery above), so this fires right away rather than debouncing a second time
   // on top of that.
-  const [fileFilterHashes, setFileFilterHashes] = useState<Set<string> | null>(null);
-  const [fileFilterLoading, setFileFilterLoading] = useState(false);
-  useEffect(() => {
-    if (!parsedQuery.file || !activeRepoId) {
-      setFileFilterHashes(null);
-      setFileFilterLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setFileFilterLoading(true);
-    api
-      .searchCommitsByFile(activeRepoId, parsedQuery.file)
-      .then((res) => {
-        if (!cancelled) setFileFilterHashes(new Set(res.hashes));
-      })
-      .catch(() => {
-        if (!cancelled) setFileFilterHashes(new Set());
-      })
-      .finally(() => {
-        if (!cancelled) setFileFilterLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeRepoId, parsedQuery.file]);
+  const fileSearchQuery = useQuery({
+    queryKey: ["fileSearch", activeRepoId, parsedQuery.file],
+    queryFn: ({ signal }) =>
+      api.searchCommitsByFile(activeRepoId!, parsedQuery.file!, signal).then((r) => new Set(r.hashes)),
+    enabled: !!activeRepoId && !!parsedQuery.file,
+  });
+  const fileFilterHashes = fileSearchQuery.data ?? null;
 
   // Client-side only (aside from the debounced `file:` lookup above) — the graph is already
   // fully loaded, so filtering it never costs a network round trip for the common case. Searches
@@ -559,6 +471,15 @@ export default function App() {
     jumpToMatch((searchCursor - 1 + matchingNodes.length) % matchingNodes.length);
   }
 
+  // DiffPanel shows exactly one of these three modes at a time — surface the loading/error state
+  // of whichever query is actually driving what's on screen right now.
+  const activeDiffQuery = showLocalDiff ? localDiffQuery : compareHash ? compareQuery : diffQuery;
+  const diffLoading = activeDiffQuery.isLoading;
+  const diffErrorMessage =
+    activeDiffQuery.error && !(activeDiffQuery.error instanceof ApiRequestError && activeDiffQuery.error.code === "commit_not_found")
+      ? (activeDiffQuery.error as Error).message
+      : null;
+
   return (
     <div data-theme={theme} className="app-root">
       <div className="nav">
@@ -577,7 +498,7 @@ export default function App() {
           <div className="sidebar-header">
             <h6>Repositories</h6>
           </div>
-          {loadError && <p className="error">{loadError}</p>}
+          {reposQuery.error && <p className="error">{(reposQuery.error as Error).message}</p>}
           <RepoSwitcher
             repos={repos}
             activeRepoId={activeRepoId}
@@ -644,18 +565,17 @@ export default function App() {
                     type="button"
                     className="btn btn-secondary"
                     onClick={async () => {
-                      setGraphLoading(true);
                       await api.fetchRemote(activeRepoId!).catch(() => {});
-                      refreshGraph(activeRepoId!);
-                      refreshStatus(activeRepoId!);
-                      if (showLocalDiff) refreshLocalDiff(activeRepoId!);
+                      await queryClient.invalidateQueries({ queryKey: ["graph", activeRepoId] });
+                      queryClient.invalidateQueries({ queryKey: ["status", activeRepoId] });
+                      if (showLocalDiff) queryClient.invalidateQueries({ queryKey: ["localDiff", activeRepoId] });
                       setNewCommitsCount(0);
                     }}
-                    disabled={graphLoading}
+                    disabled={graphQuery.isFetching}
                     title="Fetch from remotes and reload the graph and status now (also auto-refreshes every 30s)"
                   >
                     <RefreshIcon />
-                    {graphLoading ? "Refreshing…" : "Refresh"}
+                    {graphQuery.isFetching ? "Refreshing…" : "Refresh"}
                   </button>
                 </div>
               </div>
@@ -695,7 +615,7 @@ export default function App() {
                   )}
                 </div>
               )}
-              {graphError && <p className="error">{graphError}</p>}
+              {graphQuery.error && <p className="error">{(graphQuery.error as Error).message}</p>}
               {checkoutError && <p className="error">{checkoutError}</p>}
               <div className="workspace">
                 <div className="graph-pane">
@@ -706,7 +626,7 @@ export default function App() {
                         query={searchQuery}
                         onQueryChange={handleSearchQueryChange}
                         matchCount={matchingNodes.length}
-                        loading={fileFilterLoading}
+                        loading={fileSearchQuery.isFetching}
                         onNext={handleSearchNext}
                         onPrev={handleSearchPrev}
                       />
@@ -728,7 +648,7 @@ export default function App() {
                       onCheckoutRef={requestCheckout}
                     />
                   ) : (
-                    graphLoading && <p className="muted">Loading graph…</p>
+                    graphQuery.isLoading && <p className="muted">Loading graph…</p>
                   )}
                 </div>
                 <ResizableDivider onResize={handleDiffPaneResize} />
@@ -737,11 +657,11 @@ export default function App() {
                   <DiffPanel
                     repoId={activeRepoId}
                     commit={selectedCommit}
-                    diff={diff}
-                    compare={compare}
-                    localDiff={showLocalDiff ? localDiff : null}
+                    diff={diffQuery.data ?? null}
+                    compare={compareQuery.data ?? null}
+                    localDiff={showLocalDiff ? (localDiffQuery.data ?? null) : null}
                     loading={diffLoading}
-                    error={diffError}
+                    error={diffErrorMessage}
                     theme={theme}
                     remoteUrl={status?.remoteUrl ?? null}
                     onClearCompare={() => setCompareHash(null)}

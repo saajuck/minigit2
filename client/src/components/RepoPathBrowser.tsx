@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 
 interface Props {
@@ -7,45 +8,34 @@ interface Props {
 }
 
 export default function RepoPathBrowser({ onChoose, onClose }: Props) {
-  const [current, setCurrent] = useState<string | null>(null);
-  const [parent, setParent] = useState<string | null>(null);
-  const [directories, setDirectories] = useState<{ name: string; path: string }[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [path, setPath] = useState<string | undefined>(undefined);
 
-  function load(path?: string) {
-    setError(null);
-    api
-      .browseFs(path)
-      .then((data) => {
-        setCurrent(data.path);
-        setParent(data.parent);
-        setDirectories(data.directories);
-      })
-      .catch((err) => setError((err as Error).message));
-  }
-
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const browseQuery = useQuery({
+    queryKey: ["browseFs", path],
+    queryFn: ({ signal }) => api.browseFs(path, signal),
+  });
+  const current = browseQuery.data?.path ?? null;
+  const parent = browseQuery.data?.parent ?? null;
+  const directories = browseQuery.data?.directories ?? [];
+  const error = browseQuery.error as Error | null;
 
   return (
     <div className="dialog-backdrop" onClick={onClose}>
       <div className="dialog browser-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-title">Choose a folder</div>
         <p className="browser-path">{current ?? "…"}</p>
-        {error && <p className="error">{error}</p>}
+        {error && <p className="error">{error.message}</p>}
         <ul className="browser-list">
           {parent !== null && (
             <li>
-              <button type="button" onClick={() => load(parent)}>
+              <button type="button" onClick={() => setPath(parent)}>
                 .. (parent folder)
               </button>
             </li>
           )}
           {directories.map((dir) => (
             <li key={dir.path}>
-              <button type="button" onClick={() => load(dir.path)}>
+              <button type="button" onClick={() => setPath(dir.path)}>
                 {dir.name}
               </button>
             </li>

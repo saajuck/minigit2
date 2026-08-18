@@ -61,7 +61,12 @@ export default function DiffPanel({
             key="local"
             files={localDiff.files}
             theme={theme}
-            fetchPatch={(file) => () => api.getLocalDiffPatch(repoId, file.path).then((r) => r.patch)}
+            fetchPatch={(file) => ({
+              queryKey: ["localDiffPatch", repoId, file.path],
+              queryFn: (signal) => api.getLocalDiffPatch(repoId, file.path, signal).then((r) => r.patch),
+              // The working tree can change between views of the same file — never cache.
+              staleTime: 0,
+            })}
           />
         )}
       </div>
@@ -89,8 +94,13 @@ export default function DiffPanel({
             key={`${compare.from}:${compare.to}`}
             files={compare.files}
             theme={theme}
-            fetchPatch={(file) => () =>
-              api.getComparePatch(repoId, compare.from, compare.to, file.path).then((r) => r.patch)}
+            fetchPatch={(file) => ({
+              queryKey: ["comparePatch", repoId, compare.from, compare.to, file.path],
+              queryFn: (signal) =>
+                api.getComparePatch(repoId, compare.from, compare.to, file.path, signal).then((r) => r.patch),
+              // Pinned to two fixed hashes — the diff between them can never change.
+              staleTime: Infinity,
+            })}
           />
         )}
       </div>
@@ -146,9 +156,22 @@ export default function DiffPanel({
             key={diff.hash}
             files={diff.files}
             theme={theme}
-            fetchPatch={(file) => () => api.getFilePatch(repoId, diff.hash, file.path).then((r) => r.patch)}
-            fetchBlame={(file) => () => api.getFileBlame(repoId, diff.hash, file.path)}
-            fetchHotspot={(file) => () => api.getFileHotspot(repoId, diff.hash, file.path)}
+            fetchPatch={(file) => ({
+              queryKey: ["filePatch", repoId, diff.hash, file.path],
+              queryFn: (signal) => api.getFilePatch(repoId, diff.hash, file.path, signal).then((r) => r.patch),
+              // Pinned to a fixed commit hash — the diff can never change.
+              staleTime: Infinity,
+            })}
+            fetchBlame={(file) => ({
+              queryKey: ["fileBlame", repoId, diff.hash, file.path],
+              queryFn: (signal) => api.getFileBlame(repoId, diff.hash, file.path, signal),
+              staleTime: Infinity,
+            })}
+            fetchHotspot={(file) => ({
+              queryKey: ["fileHotspot", repoId, diff.hash, file.path],
+              queryFn: (signal) => api.getFileHotspot(repoId, diff.hash, file.path, signal),
+              staleTime: Infinity,
+            })}
             onSelectCommit={onSelectCommit}
           />
         </>

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import type { BranchInfo, BranchesResponse } from "@minigit2/shared";
+import { useQuery } from "@tanstack/react-query";
+import type { BranchInfo } from "@minigit2/shared";
 import { api } from "../api/client";
 import { TargetIcon } from "../design-system/icons";
 import CopyableText from "./CopyableText";
@@ -24,21 +24,18 @@ export default function BranchesDialog({
   onCheckoutRef,
   onToggleFocusRef,
 }: Props) {
-  const [data, setData] = useState<BranchesResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    api
-      .getBranches(repoId)
-      .then(setData)
-      .catch((err) => setError((err as Error).message));
-  }, [repoId, headRefreshKey]);
+  const branchesQuery = useQuery({
+    queryKey: ["branches", repoId, headRefreshKey],
+    queryFn: ({ signal }) => api.getBranches(repoId, signal),
+  });
+  const data = branchesQuery.data ?? null;
+  const error = branchesQuery.error as Error | null;
 
   return (
     <div className="dialog-backdrop" onClick={onClose}>
       <div className="dialog browser-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-title">Branches</div>
-        {error && <p className="error">{error}</p>}
+        {error && <p className="error">{error.message}</p>}
         {!error && data === null && <p className="muted">Loading…</p>}
         {!error && data && (
           <>

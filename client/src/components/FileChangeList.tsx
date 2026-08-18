@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import type { BlameResponse, FileDiffSummary, FileHotspot } from "@minigit2/shared";
 import type { Theme } from "../design-system/palette";
 import { ChevronRightIcon, FolderTreeIcon, ListIcon } from "../design-system/icons";
-import FileDiff from "./FileDiff";
+import FileDiff, { type Query } from "./FileDiff";
 
 type ViewMode = "list" | "tree";
 const VIEW_MODE_KEY = "minigit2:diffViewMode";
@@ -10,9 +10,9 @@ const VIEW_MODE_KEY = "minigit2:diffViewMode";
 interface Props {
   files: FileDiffSummary[];
   theme: Theme;
-  fetchPatch: (file: FileDiffSummary) => () => Promise<string>;
-  fetchBlame?: (file: FileDiffSummary) => () => Promise<BlameResponse>;
-  fetchHotspot?: (file: FileDiffSummary) => () => Promise<FileHotspot>;
+  fetchPatch: (file: FileDiffSummary) => Query<string>;
+  fetchBlame?: (file: FileDiffSummary) => Query<BlameResponse>;
+  fetchHotspot?: (file: FileDiffSummary) => Query<FileHotspot>;
   onSelectCommit?: (hash: string) => void;
 }
 
