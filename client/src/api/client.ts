@@ -103,12 +103,8 @@ export const api = {
     }),
   getFileBlame: (repoId: string, hash: string, path: string, signal?: AbortSignal) =>
     request<BlameResponse>(`/repos/${repoId}/commits/${hash}/blame?path=${encodeURIComponent(path)}`, { signal }),
-  getFilesHotspot: (repoId: string, hash: string, paths: string[], signal?: AbortSignal) =>
-    request<FilesHotspotResponse>(`/repos/${repoId}/commits/${hash}/hotspot`, {
-      method: "POST",
-      body: JSON.stringify({ paths }),
-      signal,
-    }),
+  getFilesHotspot: (repoId: string, hash: string, signal?: AbortSignal) =>
+    request<FilesHotspotResponse>(`/repos/${repoId}/commits/${hash}/hotspot`, { signal }),
   getStatus: (repoId: string, signal?: AbortSignal) =>
     request<StatusResponse>(`/repos/${repoId}/status`, { signal }),
   checkout: (repoId: string, ref: string) =>

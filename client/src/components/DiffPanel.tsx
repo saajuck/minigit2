@@ -47,7 +47,7 @@ export default function DiffPanel({
   // hooks can't be conditional; `enabled` does the actual gating.
   const filesHotspotQuery = useQuery({
     queryKey: ["filesHotspot", repoId, diff?.hash],
-    queryFn: ({ signal }) => api.getFilesHotspot(repoId!, diff!.hash, diff!.files.map((f) => f.path), signal),
+    queryFn: ({ signal }) => api.getFilesHotspot(repoId!, diff!.hash, signal),
     enabled: !!repoId && !!diff && diff.files.length > 0,
     staleTime: Infinity,
   });

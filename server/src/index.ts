@@ -37,10 +37,7 @@ function resolveClientDist(): string {
 const PORT = Number(process.env.PORT ?? 4300);
 
 const app = express();
-// Default 100kb is too small for the hotspot batch endpoint's path list on a commit touching
-// thousands of files (a real one in testing: 6445 paths, ~450kb of JSON) — raised generously
-// since every other route's body is tiny and this is a localhost-only, single-user tool anyway.
-app.use(express.json({ limit: "5mb" }));
+app.use(express.json());
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });

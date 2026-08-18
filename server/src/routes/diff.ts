@@ -41,21 +41,11 @@ diffRouter.get("/:hash/diff/file", resolveRepo, async (req, res) => {
   }
 });
 
-diffRouter.post("/:hash/hotspot", resolveRepo, async (req, res) => {
-  // POST with the path list in the body, not a GET query string — a commit touching thousands
-  // of files (a lockfile bump, a big rename sweep) would otherwise build a query string past
-  // the server's header-size limit and fail outright with 431, on exactly the commits where
-  // batching mattered most.
-  const raw = req.body?.paths;
-  const paths = (Array.isArray(raw) ? raw : []).filter(
-    (p): p is string => typeof p === "string" && p.trim() !== "",
-  );
-  if (paths.length === 0) {
-    res.status(400).json({ error: "invalid_path", message: "at least one path is required" });
-    return;
-  }
+diffRouter.get("/:hash/hotspot", resolveRepo, async (req, res) => {
   try {
-    const hotspot = await getFilesHotspot(req.repo!.path, paths);
+    // No path list from the client — the touched files are derived from the hash server-side
+    // (see getFilesHotspot), so this never has to ship a path list either direction.
+    const hotspot = await getFilesHotspot(req.repo!.path, req.params.hash as string);
     res.json(hotspot);
   } catch (err) {
     // Own error code (not the shared "git_error") — fetched automatically whenever a diff is
