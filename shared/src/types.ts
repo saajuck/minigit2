@@ -77,6 +77,10 @@ export interface FileHotspot {
   authors: number;
 }
 
+/** Hotspot stats for every file in a diff, keyed by path — fetched in one request/one history
+ * walk rather than one per file (see server/src/git/hotspot.ts). */
+export type FilesHotspotResponse = Record<string, FileHotspot>;
+
 export interface DiffResponse {
   hash: string;
   parentHash: string | null;

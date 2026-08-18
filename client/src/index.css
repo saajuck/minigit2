@@ -560,7 +560,10 @@
   flex: 1;
   min-width: 0;
   min-height: 0;
-  overflow: auto;
+  /* Doesn't scroll itself — .diff-files-scroll below is the actual scroll container, so the
+   * commit header (hash/subject/body) and file stats stay pinned above the file list instead of
+   * scrolling away with it, and a huge file list only ever scrolls its own rows. */
+  overflow: hidden;
 }
 
 .diff-hash {
@@ -632,6 +635,27 @@
   flex-direction: column;
   gap: 10px;
   min-width: 0;
+  flex: 1;
+  min-height: 0;
+}
+
+.diff-files-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* The tree view's rows are regular flex children (not virtualized, see FileChangeList.tsx) —
+   * this still applies to them since they share this scroll container. */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.diff-files-virtual-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding-bottom: 10px;
 }
 
 .diffstats {

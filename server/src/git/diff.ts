@@ -17,6 +17,18 @@ async function getCommitBody(repoPath: string, hash: string): Promise<string> {
   return stdout.trimEnd();
 }
 
+/** Just the list of paths a commit touched, no status/stats — cheaper than getCommitFileList's
+ * full name-status + numstat, for callers (hotspot) that only need "which files". */
+export async function getCommitChangedPaths(repoPath: string, hash: string): Promise<string[]> {
+  const parentHash = await getFirstParent(repoPath, hash);
+  const diffBase = parentHash ?? EMPTY_TREE_HASH;
+  const { stdout } = await runGit(repoPath, ["diff", "--no-color", "--name-only", diffBase, hash]);
+  return stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
 /** Fetches a single file's patch on demand — the file list endpoint stays cheap even for large diffs. */
 export async function getCommitFilePatch(repoPath: string, hash: string, filePath: string): Promise<string> {
   const parentHash = await getFirstParent(repoPath, hash);

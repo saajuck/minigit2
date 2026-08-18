@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import type { CommitNode, CompareResponse, DiffResponse, LocalDiffResponse } from "@minigit2/shared";
 import { api } from "../api/client";
 import { ExternalLinkIcon } from "../design-system/icons";
@@ -40,6 +41,17 @@ export default function DiffPanel({
   onClearLocalDiff,
   onSelectCommit,
 }: Props) {
+  // Fetched here (once per commit, all files in one request) rather than inside FileChangeList
+  // or FileDiff — a commit touching hundreds of files must never fan out into hundreds of
+  // parallel hotspot requests. Declared unconditionally, before the early returns below, since
+  // hooks can't be conditional; `enabled` does the actual gating.
+  const filesHotspotQuery = useQuery({
+    queryKey: ["filesHotspot", repoId, diff?.hash],
+    queryFn: ({ signal }) => api.getFilesHotspot(repoId!, diff!.hash, signal),
+    enabled: !!repoId && !!diff && diff.files.length > 0,
+    staleTime: Infinity,
+  });
+
   if (loading) return <p className="muted">Loading diff…</p>;
   if (error) return <p className="error">{error}</p>;
 
@@ -167,11 +179,7 @@ export default function DiffPanel({
               queryFn: (signal) => api.getFileBlame(repoId, diff.hash, file.path, signal),
               staleTime: Infinity,
             })}
-            fetchHotspot={(file) => ({
-              queryKey: ["fileHotspot", repoId, diff.hash, file.path],
-              queryFn: (signal) => api.getFileHotspot(repoId, diff.hash, file.path, signal),
-              staleTime: Infinity,
-            })}
+            hotspots={filesHotspotQuery.data}
             onSelectCommit={onSelectCommit}
           />
         </>
