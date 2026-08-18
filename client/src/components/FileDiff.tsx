@@ -1,7 +1,18 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type { BlameResponse, FileDiffSummary, FileHotspot } from "@minigit2/shared";
 import { getPalette, type LaneColor, type Theme } from "../design-system/palette";
 import { ChevronRightIcon } from "../design-system/icons";
+
+export interface Query<T> {
+  queryKey: unknown[];
+  queryFn: (signal: AbortSignal) => Promise<T>;
+  /** Content pinned to a fixed commit hash (or a from/to hash pair) never changes once computed
+   * — those call sites pass Infinity. Working-tree content (local/uncommitted diffs) can change
+   * between views of the same file, so those call sites pass 0 instead. Required rather than
+   * defaulted here so every call site states its own assumption explicitly. */
+  staleTime: number;
+}
 
 interface Props {
   file: FileDiffSummary;
@@ -9,13 +20,13 @@ interface Props {
   /** What to show in the header — the full path in list view, just the filename in tree view
    * (directory context is already conveyed by nesting there). Defaults to file.path. */
   displayPath?: string;
-  fetchPatch: () => Promise<string>;
+  fetchPatch: Query<string>;
   /** Only provided in single-commit diff mode (one concrete ref to blame against) — its presence
    * is what decides whether the Diff/Blame toggle renders at all. */
-  fetchBlame?: () => Promise<BlameResponse>;
+  fetchBlame?: Query<BlameResponse>;
   /** Same scoping as fetchBlame. Fetched automatically on mount (not gated behind expanding the
    * file) so the whole file list is scannable for "what's hot" at a glance. */
-  fetchHotspot?: () => Promise<FileHotspot>;
+  fetchHotspot?: Query<FileHotspot>;
   onSelectCommit?: (hash: string) => void;
 }
 
@@ -38,67 +49,41 @@ export default function FileDiff({
 }: Props) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<"diff" | "blame">("diff");
-  const [patch, setPatch] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [blame, setBlame] = useState<BlameResponse | null>(null);
-  const [blameLoading, setBlameLoading] = useState(false);
-  const [blameError, setBlameError] = useState<string | null>(null);
-  const [hotspot, setHotspot] = useState<FileHotspot | null>(null);
 
-  useEffect(() => {
-    if (!fetchHotspot) return;
-    let cancelled = false;
-    fetchHotspot()
-      .then((data) => {
-        if (!cancelled) setHotspot(data);
-      })
-      .catch(() => {
-        // best-effort enrichment — a failed fetch just means no badge, not a broken file list
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const patchQuery = useQuery({
+    queryKey: fetchPatch.queryKey,
+    queryFn: ({ signal }) => fetchPatch.queryFn(signal),
+    enabled: open && view === "diff",
+    staleTime: fetchPatch.staleTime,
+  });
+
+  const blameQuery = useQuery({
+    queryKey: fetchBlame?.queryKey ?? [],
+    queryFn: ({ signal }) => fetchBlame!.queryFn(signal),
+    enabled: !!fetchBlame && open && view === "blame",
+    staleTime: fetchBlame?.staleTime ?? 0,
+  });
+
+  const hotspotQuery = useQuery({
+    queryKey: fetchHotspot?.queryKey ?? [],
+    queryFn: ({ signal }) => fetchHotspot!.queryFn(signal),
+    enabled: !!fetchHotspot,
+    staleTime: fetchHotspot?.staleTime ?? 0,
+    // Best-effort enrichment — a failed fetch just means no badge, not a broken file list.
+    retry: false,
+  });
 
   const pal = getPalette(theme);
   const meta = STATUS_META[file.status];
   const badgeColor = pal[meta.laneIndex]!;
 
-  function ensurePatchLoaded() {
-    if (patch !== null || loading) return;
-    setLoading(true);
-    setError(null);
-    fetchPatch()
-      .then((text) => setPatch(text))
-      .catch((err) => setError((err as Error).message))
-      .finally(() => setLoading(false));
-  }
-
-  function ensureBlameLoaded() {
-    if (!fetchBlame || blame !== null || blameLoading) return;
-    setBlameLoading(true);
-    setBlameError(null);
-    fetchBlame()
-      .then((data) => setBlame(data))
-      .catch((err) => setBlameError((err as Error).message))
-      .finally(() => setBlameLoading(false));
-  }
-
   function toggle() {
-    const next = !open;
-    setOpen(next);
-    if (next) {
-      if (view === "diff") ensurePatchLoaded();
-      else ensureBlameLoaded();
-    }
+    setOpen((o) => !o);
   }
 
   function selectView(next: "diff" | "blame") {
     setOpen(true);
     setView(next);
-    if (next === "diff") ensurePatchLoaded();
-    else ensureBlameLoaded();
   }
 
   return (
@@ -115,9 +100,12 @@ export default function FileDiff({
           <span className="file-diff-path" title={file.path}>
             {displayPath ?? file.path}
           </span>
-          {hotspot && (
-            <span className="file-diff-hotspot" title={`${hotspot.commits} commits · ${hotspot.authors} authors, all time`}>
-              {hotspot.commits} · {hotspot.authors}
+          {hotspotQuery.data && (
+            <span
+              className="file-diff-hotspot"
+              title={`${hotspotQuery.data.commits} commits · ${hotspotQuery.data.authors} authors, all time`}
+            >
+              {hotspotQuery.data.commits} · {hotspotQuery.data.authors}
             </span>
           )}
           <span className="file-diff-chevron" style={{ transform: `rotate(${open ? 90 : 0}deg)` }}>
@@ -145,11 +133,11 @@ export default function FileDiff({
       </div>
       {open && view === "diff" && (
         <div className="file-diff-body">
-          {loading && <p className="muted">Loading…</p>}
-          {error && <p className="error">{error}</p>}
-          {patch !== null && (
+          {patchQuery.isLoading && <p className="muted">Loading…</p>}
+          {patchQuery.error && <p className="error">{(patchQuery.error as Error).message}</p>}
+          {patchQuery.data !== undefined && (
             <pre className="patch">
-              {patch.split("\n").map((line, i) => (
+              {patchQuery.data.split("\n").map((line, i) => (
                 <div key={i} style={lineStyle(line, pal)}>
                   {line}
                 </div>
@@ -160,12 +148,12 @@ export default function FileDiff({
       )}
       {open && view === "blame" && (
         <div className="file-diff-body">
-          {blameLoading && <p className="muted">Loading…</p>}
-          {blameError && <p className="error">{blameError}</p>}
-          {blame !== null && (
+          {blameQuery.isLoading && <p className="muted">Loading…</p>}
+          {blameQuery.error && <p className="error">{(blameQuery.error as Error).message}</p>}
+          {blameQuery.data && (
             <div className="blame-body">
-              {blame.lines.map((line, i) => {
-                const isNewGroup = i === 0 || blame.lines[i - 1]!.hash !== line.hash;
+              {blameQuery.data.lines.map((line, i) => {
+                const isNewGroup = i === 0 || blameQuery.data.lines[i - 1]!.hash !== line.hash;
                 return (
                   <div className="blame-row" key={i}>
                     <div className="blame-gutter">

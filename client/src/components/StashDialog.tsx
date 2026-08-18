@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import type { DiffResponse, StashEntry } from "@minigit2/shared";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import type { StashEntry } from "@minigit2/shared";
 import { api } from "../api/client";
 import type { Theme } from "../design-system/palette";
 import { ChevronRightIcon } from "../design-system/icons";
@@ -13,24 +14,20 @@ interface Props {
 }
 
 export default function StashDialog({ repoId, theme, onClose }: Props) {
-  const [entries, setEntries] = useState<StashEntry[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    api
-      .getStashList(repoId)
-      .then((data) => setEntries(data.entries))
-      .catch((err) => setError((err as Error).message));
-  }, [repoId]);
+  const stashQuery = useQuery({
+    queryKey: ["stashList", repoId],
+    queryFn: ({ signal }) => api.getStashList(repoId, signal),
+  });
+  const entries = stashQuery.data?.entries ?? null;
 
   return (
     <div className="dialog-backdrop" onClick={onClose}>
       <div className="dialog browser-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="dialog-title">Stash</div>
-        {error && <p className="error">{error}</p>}
-        {!error && entries === null && <p className="muted">Loading…</p>}
-        {!error && entries !== null && entries.length === 0 && <p className="muted">No stash entries.</p>}
-        {!error && entries !== null && entries.length > 0 && (
+        {stashQuery.error && <p className="error">{(stashQuery.error as Error).message}</p>}
+        {!stashQuery.error && entries === null && <p className="muted">Loading…</p>}
+        {!stashQuery.error && entries !== null && entries.length === 0 && <p className="muted">No stash entries.</p>}
+        {!stashQuery.error && entries !== null && entries.length > 0 && (
           <ul className="entry-list">
             {entries.map((entry) => (
               <StashRow key={entry.ref} repoId={repoId} entry={entry} theme={theme} />
@@ -49,27 +46,18 @@ export default function StashDialog({ repoId, theme, onClose }: Props) {
 
 function StashRow({ repoId, entry, theme }: { repoId: string; entry: StashEntry; theme: Theme }) {
   const [open, setOpen] = useState(false);
-  const [diff, setDiff] = useState<DiffResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  function toggle() {
-    const next = !open;
-    setOpen(next);
-    if (next && diff === null && !loading) {
-      setLoading(true);
-      setError(null);
-      api
-        .getDiff(repoId, entry.hash)
-        .then((data) => setDiff(data))
-        .catch((err) => setError((err as Error).message))
-        .finally(() => setLoading(false));
-    }
-  }
+  const diffQuery = useQuery({
+    queryKey: ["diff", repoId, entry.hash],
+    queryFn: ({ signal }) => api.getDiff(repoId, entry.hash, signal),
+    enabled: open,
+    // Pinned to a fixed commit hash — a stash entry's own diff can never change.
+    staleTime: Infinity,
+  });
 
   return (
     <li className="entry-list-row-expandable">
-      <button type="button" className="entry-list-row-header" onClick={toggle}>
+      <button type="button" className="entry-list-row-header" onClick={() => setOpen((o) => !o)}>
         <CopyableText className="entry-list-hash" value={entry.hash} display={entry.hash.slice(0, 7)} stopPropagation={false} />
         <span className="entry-list-subject">{entry.subject}</span>
         <span className="entry-list-meta">
@@ -81,17 +69,21 @@ function StashRow({ repoId, entry, theme }: { repoId: string; entry: StashEntry;
       </button>
       {open && (
         <div className="entry-list-diff">
-          {loading && <p className="muted">Loading…</p>}
-          {error && <p className="error">{error}</p>}
-          {diff && diff.files.length === 0 && <p className="muted">No file changes.</p>}
-          {diff && diff.files.length > 0 && (
+          {diffQuery.isLoading && <p className="muted">Loading…</p>}
+          {diffQuery.error && <p className="error">{(diffQuery.error as Error).message}</p>}
+          {diffQuery.data && diffQuery.data.files.length === 0 && <p className="muted">No file changes.</p>}
+          {diffQuery.data && diffQuery.data.files.length > 0 && (
             <div className="diff-files">
-              {diff.files.map((file) => (
+              {diffQuery.data.files.map((file) => (
                 <FileDiff
                   key={`${entry.hash}:${file.oldPath ?? file.path}`}
                   file={file}
                   theme={theme}
-                  fetchPatch={() => api.getFilePatch(repoId, entry.hash, file.path).then((r) => r.patch)}
+                  fetchPatch={{
+                    queryKey: ["filePatch", repoId, entry.hash, file.path],
+                    queryFn: (signal) => api.getFilePatch(repoId, entry.hash, file.path, signal).then((r) => r.patch),
+                    staleTime: Infinity,
+                  }}
                 />
               ))}
             </div>
