@@ -4,8 +4,8 @@ import type {
   CheckoutResponse,
   CompareResponse,
   DiffResponse,
-  FileHotspot,
   FilePatchResponse,
+  FilesHotspotResponse,
   FileSearchResponse,
   FsListResponse,
   GraphResponse,
@@ -103,8 +103,12 @@ export const api = {
     }),
   getFileBlame: (repoId: string, hash: string, path: string, signal?: AbortSignal) =>
     request<BlameResponse>(`/repos/${repoId}/commits/${hash}/blame?path=${encodeURIComponent(path)}`, { signal }),
-  getFileHotspot: (repoId: string, hash: string, path: string, signal?: AbortSignal) =>
-    request<FileHotspot>(`/repos/${repoId}/commits/${hash}/hotspot?path=${encodeURIComponent(path)}`, { signal }),
+  getFilesHotspot: (repoId: string, hash: string, paths: string[], signal?: AbortSignal) =>
+    request<FilesHotspotResponse>(`/repos/${repoId}/commits/${hash}/hotspot`, {
+      method: "POST",
+      body: JSON.stringify({ paths }),
+      signal,
+    }),
   getStatus: (repoId: string, signal?: AbortSignal) =>
     request<StatusResponse>(`/repos/${repoId}/status`, { signal }),
   checkout: (repoId: string, ref: string) =>

@@ -12,6 +12,7 @@
   "dependencies": {
     "@minigit2/shared": "*",
     "@tanstack/react-query": "^5.101.4",
+    "@tanstack/react-virtual": "^3.14.10",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

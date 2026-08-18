@@ -24,9 +24,11 @@ interface Props {
   /** Only provided in single-commit diff mode (one concrete ref to blame against) — its presence
    * is what decides whether the Diff/Blame toggle renders at all. */
   fetchBlame?: Query<BlameResponse>;
-  /** Same scoping as fetchBlame. Fetched automatically on mount (not gated behind expanding the
-   * file) so the whole file list is scannable for "what's hot" at a glance. */
-  fetchHotspot?: Query<FileHotspot>;
+  /** Already-resolved, not a Query — the parent (FileChangeList) fetches hotspot stats for every
+   * file in the diff in one batched request rather than each FileDiff firing its own, so this is
+   * just a lookup into that result. undefined while the batch is still loading or this file
+   * wasn't part of it (no badge shown either way). */
+  hotspot?: FileHotspot;
   onSelectCommit?: (hash: string) => void;
 }
 
@@ -44,7 +46,7 @@ export default function FileDiff({
   displayPath,
   fetchPatch,
   fetchBlame,
-  fetchHotspot,
+  hotspot,
   onSelectCommit,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -62,15 +64,6 @@ export default function FileDiff({
     queryFn: ({ signal }) => fetchBlame!.queryFn(signal),
     enabled: !!fetchBlame && open && view === "blame",
     staleTime: fetchBlame?.staleTime ?? 0,
-  });
-
-  const hotspotQuery = useQuery({
-    queryKey: fetchHotspot?.queryKey ?? [],
-    queryFn: ({ signal }) => fetchHotspot!.queryFn(signal),
-    enabled: !!fetchHotspot,
-    staleTime: fetchHotspot?.staleTime ?? 0,
-    // Best-effort enrichment — a failed fetch just means no badge, not a broken file list.
-    retry: false,
   });
 
   const pal = getPalette(theme);
@@ -100,12 +93,12 @@ export default function FileDiff({
           <span className="file-diff-path" title={file.path}>
             {displayPath ?? file.path}
           </span>
-          {hotspotQuery.data && (
+          {hotspot && (
             <span
               className="file-diff-hotspot"
-              title={`${hotspotQuery.data.commits} commits · ${hotspotQuery.data.authors} authors, all time`}
+              title={`${hotspot.commits} commits · ${hotspot.authors} authors, all time`}
             >
-              {hotspotQuery.data.commits} · {hotspotQuery.data.authors}
+              {hotspot.commits} · {hotspot.authors}
             </span>
           )}
           <span className="file-diff-chevron" style={{ transform: `rotate(${open ? 90 : 0}deg)` }}>
