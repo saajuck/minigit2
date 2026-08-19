@@ -11,9 +11,11 @@
   },
   "dependencies": {
     "@minigit2/shared": "*",
+    "compression": "^1.8.1",
     "express": "^4.21.1"
   },
   "devDependencies": {
+    "@types/compression": "^1.8.1",
     "@types/express": "^4.17.21",
     "@types/node": "^22.9.0",
     "tsx": "^4.19.2",

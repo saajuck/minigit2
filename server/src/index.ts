@@ -1,3 +1,4 @@
+import compression from "compression";
 import express from "express";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -38,6 +39,11 @@ const PORT = Number(process.env.PORT ?? 4300);
 
 const app = express();
 app.use(express.json());
+// Skip the SSE watch stream explicitly rather than trust compression's own content-type
+// heuristics — gzip buffers output, which would delay/break a stream that's supposed to flush
+// each event immediately. Worth it for the graph endpoint especially: a large repo's full
+// {nodes,edges} JSON can run into the megabytes.
+app.use(compression({ filter: (req, res) => req.path.endsWith("/watch") === false && compression.filter(req, res) }));
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
