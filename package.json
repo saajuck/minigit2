@@ -14,10 +14,12 @@
     "start": "npm run start -w server",
     "typecheck": "npm run typecheck -w server && npm run typecheck -w client",
     "test": "npm run test -w server && npm run test -w client",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "e2e": "playwright test"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "@playwright/test": "^1.62.1",
     "@tauri-apps/cli": "^2.11.4",
     "concurrently": "^9.0.1",
     "esbuild": "^0.28.2",
