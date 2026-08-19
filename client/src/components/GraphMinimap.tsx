@@ -1,4 +1,4 @@
-import { useRef, type MouseEvent as ReactMouseEvent } from "react";
+import { useMemo, useRef, type MouseEvent as ReactMouseEvent } from "react";
 import type { CommitNode } from "@minigit2/shared";
 import { getPalette, type Theme } from "../design-system/palette";
 
@@ -36,6 +36,22 @@ export default function GraphMinimap({
 }: Props) {
   const elRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
+
+  // Re-filtering the full node list on every render used to happen unconditionally — and since
+  // scrollTop (a GraphView sibling prop) changes on every scroll-driven render, that meant
+  // refiltering all of `nodes` on every scroll tick just to reposition a small viewport
+  // indicator, even though neither list depends on scroll position at all.
+  const tagTicks = useMemo(
+    () =>
+      nodes
+        .filter((n) => n.refs.some((r) => r.type === "tag"))
+        .map((n) => ({ hash: n.hash, row: n.row, tagName: n.refs.find((r) => r.type === "tag")!.name })),
+    [nodes],
+  );
+  const matchTicks = useMemo(
+    () => (matchHashes ? nodes.filter((n) => matchHashes.has(n.hash)).map((n) => ({ hash: n.hash, row: n.row })) : []),
+    [nodes, matchHashes],
+  );
 
   if (totalHeight <= 0 || viewportHeight <= 0) return <div className="graph-minimap" ref={elRef} />;
 
@@ -76,28 +92,21 @@ export default function GraphMinimap({
   return (
     <div className="graph-minimap" ref={elRef} onMouseDown={handleMouseDown} title="Drag to navigate the graph">
       {matchHashes &&
-        nodes
-          .filter((n) => matchHashes.has(n.hash))
-          .map((n) => (
-            <div
-              key={n.hash}
-              className="graph-minimap-match"
-              style={{ top: n.row * rowHeight * scale, background: matchColor }}
-            />
-          ))}
-      {nodes
-        .filter((n) => n.refs.some((r) => r.type === "tag"))
-        .map((n) => {
-          const tagName = n.refs.find((r) => r.type === "tag")!.name;
-          return (
-            <div
-              key={n.hash}
-              className="graph-minimap-tag"
-              style={{ top: n.row * rowHeight * scale, background: tagColor }}
-              title={tagName}
-            />
-          );
-        })}
+        matchTicks.map((n) => (
+          <div
+            key={n.hash}
+            className="graph-minimap-match"
+            style={{ top: n.row * rowHeight * scale, background: matchColor }}
+          />
+        ))}
+      {tagTicks.map((n) => (
+        <div
+          key={n.hash}
+          className="graph-minimap-tag"
+          style={{ top: n.row * rowHeight * scale, background: tagColor }}
+          title={n.tagName}
+        />
+      ))}
       <div
         className="graph-minimap-viewport"
         style={{ top: scrollTop * scale, height: Math.max(4, viewportHeight * scale) }}

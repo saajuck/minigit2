@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { CommitNode, GraphEdge } from "@minigit2/shared";
 import { getPalette, type Theme } from "../design-system/palette";
 import CommitRow from "./CommitRow";
@@ -58,6 +58,43 @@ export default function GraphView({
     return () => observer.disconnect();
   }, []);
 
+  // Native scroll events can fire far more often than the display can actually repaint —
+  // coalesce them to at most once per animation frame, and read scrollTop fresh from the DOM
+  // when the frame actually runs (not whatever value the *first* coalesced event happened to
+  // carry, which could already be stale by the time this fires on a fast scroll/fling).
+  const scrollRafRef = useRef<number | null>(null);
+  useEffect(() => {
+    return () => {
+      if (scrollRafRef.current !== null) cancelAnimationFrame(scrollRafRef.current);
+    };
+  }, []);
+  function handleScroll() {
+    if (scrollRafRef.current !== null) return;
+    scrollRafRef.current = requestAnimationFrame(() => {
+      scrollRafRef.current = null;
+      const el = containerRef.current;
+      if (el) setScrollTop(el.scrollTop);
+    });
+  }
+
+  // Rebuilding a full hash->node Map and re-deriving the graph's pixel dimensions is O(nodes) —
+  // real cost on a large history, and previously redone on every render, including every one of
+  // the (now throttled, but still frequent) scroll-driven re-renders below even though none of
+  // this actually depends on scroll position, only on `nodes` itself.
+  const { rowByHash, graphWidth, totalHeight, currentBranchColorGroup } = useMemo(() => {
+    const maxLane = nodes.reduce((max, n) => Math.max(max, n.lane), 0);
+    // Colored by colorGroup (a persistent per-branch-run id from the server), not by the row's
+    // current lane — a lane number can legitimately shift around a merge, but colorGroup stays
+    // fixed for the whole continuous run, so a single branch never changes color partway through.
+    const headColorGroup = nodes.find((n) => n.refs.some((r) => r.type === "branch" && r.isHead))?.colorGroup ?? null;
+    return {
+      rowByHash: new Map(nodes.map((n) => [n.hash, n])),
+      graphWidth: PAD_X + (maxLane + 1) * LANE_WIDTH,
+      totalHeight: nodes.length * ROW_HEIGHT,
+      currentBranchColorGroup: headColorGroup,
+    };
+  }, [nodes]);
+
   // Keep the selected row in view regardless of what selected it (click, arrow keys, or
   // jumping to a search match) — a single place responsible for "scroll it into view".
   useEffect(() => {
@@ -84,18 +121,8 @@ export default function GraphView({
   }
 
   const pal = getPalette(theme);
-  // Colored by colorGroup (a persistent per-branch-run id from the server), not by the row's
-  // current lane — a lane number can legitimately shift around a merge, but colorGroup stays
-  // fixed for the whole continuous run, so a single branch never changes color partway through.
-  const currentBranchColorGroup =
-    nodes.find((n) => n.refs.some((r) => r.type === "branch" && r.isHead))?.colorGroup ?? null;
   const groupColor = (colorGroup: number) =>
     colorGroup === currentBranchColorGroup ? pal[colorGroup % pal.length]!.strong : pal[colorGroup % pal.length]!.stroke;
-
-  const maxLane = nodes.reduce((max, n) => Math.max(max, n.lane), 0);
-  const graphWidth = PAD_X + (maxLane + 1) * LANE_WIDTH;
-  const totalHeight = nodes.length * ROW_HEIGHT;
-  const rowByHash = new Map(nodes.map((n) => [n.hash, n]));
 
   // Only mount rows (and SVG shapes) near the visible scroll range — the rest of the
   // list can be thousands of commits deep, and mounting every row up front is what
@@ -159,7 +186,7 @@ export default function GraphView({
         className="blueprint graph-view"
         ref={containerRef}
         tabIndex={0}
-        onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+        onScroll={handleScroll}
         onKeyDown={handleKeyDown}
       >
         <i className="corner tl" />
