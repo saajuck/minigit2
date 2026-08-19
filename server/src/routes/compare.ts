@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { getCompareFileList, getCompareFilePatch } from "../git/diff";
 import { isMissingObjectError } from "../git/errorClassification";
+import { isUnsafeRef } from "../git/exec";
 import { resolveRepo } from "../middleware/resolveRepo";
 
 export const compareRouter = Router({ mergeParams: true });
@@ -20,6 +21,9 @@ function readFromTo(req: Request): { from: string; to: string } | null {
   const from = req.query.from;
   const to = req.query.to;
   if (typeof from !== "string" || from.trim() === "" || typeof to !== "string" || to.trim() === "") {
+    return null;
+  }
+  if (isUnsafeRef(from) || isUnsafeRef(to)) {
     return null;
   }
   return { from, to };
