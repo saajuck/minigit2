@@ -45,7 +45,7 @@ async function fastForwardTo(repoPath: string, remoteRef: string): Promise<void>
   }
 }
 
-interface CheckoutTarget {
+export interface CheckoutTarget {
   shortName: string;
   /** Set when `ref` was a remote-tracking branch — the same ref, to fast-forward the local
    * branch onto once checked out. */
@@ -68,6 +68,16 @@ async function resolveCheckoutTarget(repoPath: string, ref: string): Promise<Che
   }
   const { stdout } = await runGit(repoPath, ["remote"]);
   const remotes = stdout.split("\n").map((r) => r.trim()).filter(Boolean);
+  return resolveRemoteShortName(ref, remotes);
+}
+
+/** Pure decision logic pulled out of resolveCheckoutTarget for direct testing — `ref` here is
+ * already confirmed (by the caller) to be a real remote-tracking ref, so this only has to pick
+ * *which* remote it belongs to. Remote names can themselves contain slashes (git allows it), so
+ * a ref like "a/b/c" is ambiguous between remote "a" (shortName "b/c") and remote "a/b"
+ * (shortName "c") if both exist — resolved by `remotes` iteration order, i.e. whatever order
+ * `git remote` prints them in. */
+export function resolveRemoteShortName(ref: string, remotes: string[]): CheckoutTarget {
   for (const remote of remotes) {
     if (ref.startsWith(`${remote}/`)) {
       const shortName = ref.slice(remote.length + 1);

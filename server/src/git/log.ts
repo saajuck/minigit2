@@ -66,7 +66,7 @@ function parseRecord(record: string): RawCommit {
 }
 
 /** Parses the %D output of `git log --decorate=full`, e.g. "HEAD -> refs/heads/main, tag: refs/tags/v1.0". */
-function parseRefDecorations(raw: string): RefDecoration[] {
+export function parseRefDecorations(raw: string): RefDecoration[] {
   if (!raw.trim()) return [];
 
   return raw
