@@ -13,12 +13,20 @@
     "build": "npm run typecheck -w server && npm run build -w client",
     "start": "npm run start -w server",
     "typecheck": "npm run typecheck -w server && npm run typecheck -w client",
-    "test": "npm run test -w server && npm run test -w client"
+    "test": "npm run test -w server && npm run test -w client",
+    "lint": "eslint ."
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@tauri-apps/cli": "^2.11.4",
     "concurrently": "^9.0.1",
     "esbuild": "^0.28.2",
-    "typescript": "^5.6.3"
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^9.1.2",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.26",
+    "prettier": "^3.9.6",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.67.0"
   }
 }
