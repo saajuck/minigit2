@@ -149,17 +149,30 @@ Liste des repos connus persistée hors de tout repo suivi, dans
 ## Non-objectifs explicites pour la V1
 
 Staging/commit, push/pull/fetch, merge/rebase/cherry-pick/revert par
-drag-and-drop, résolution de conflits, stash, création/suppression/renommage
-de branche (checkout uniquement), auth/multi-utilisateur, watcher filesystem
-(l'auto-refresh est du polling toutes les 30s, pas des événements fs natifs),
-force/discard sur checkout, sous-modules, recherche/filtre de commits, blame,
+drag-and-drop, résolution de conflits, création de stash/apply de stash,
+création/suppression/renommage de branche (checkout uniquement),
+auth/multi-utilisateur, force/discard sur checkout, sous-modules,
 historique par fichier.
 
-Note : le file picker natif et la pagination/virtualisation pour gros
-historiques, initialement notés hors-scope V1 ci-dessus, ont finalement été
-implémentés (navigateur de dossiers server-side, virtualisation de la liste
-de commits) — voir les sections dédiées plus bas dans ce document et
-l'historique Git pour le détail.
+Note : plusieurs points initialement notés hors-scope V1 ci-dessus ont
+finalement été implémentés dans des extensions ultérieures (voir les
+sections dédiées plus bas dans ce document et l'historique Git pour le
+détail de chacun) :
+- **File picker natif** et **pagination/virtualisation pour gros
+  historiques** → navigateur de dossiers server-side, virtualisation de la
+  liste de commits.
+- **Recherche/filtre de commits** → opérateurs de recherche avancés
+  (`author:`/`after:`/`before:`/`file:`/`branch:`), voir "Feature 2:
+  Advanced commit search operators".
+- **Blame** → bascule Diff/Blame inline dans le panneau de fichier, voir
+  "Extension : blame inline dans le panneau de diff".
+- **Watcher filesystem** → en plus du polling 30s d'origine, un flux SSE
+  serveur notifie le client dès qu'un ref change sur disque (commit fait
+  dans un autre terminal, checkout, fetch/pull externe), voir "Feature 3:
+  FS watcher on git refs for live updates".
+- **Stash** : uniquement la **consultation en lecture seule** (liste +
+  aperçu de diff par entrée) a été ajoutée — la création/l'application de
+  stash reste hors-scope, cf. non-objectifs ci-dessus.
 
 ## Ordre de build (phases indépendamment démontrables)
 
