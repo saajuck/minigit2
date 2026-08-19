@@ -148,6 +148,14 @@ repo (fixture ou repo réel type `altered`) avant d'optimiser à l'aveugle —
 "gros", donc à valider que ça vaut le coût de complexification avant de le
 faire.
 
+**Mesuré (2026-08-19)** : sur `altered` (~5600 commits, plusieurs branches
+longue durée réelles), `max(node.lane)` = 3, soit `L` ≤ 4 — très loin du
+seuil où `O(n·L)` devient un problème réel. **Décision : ne pas
+implémenter.** Le risque (introduire un bug dans un algorithme de coloration
+déjà source de deux bugs réels cette session) dépasse le gain incertain. À
+re-mesurer si un repo avec un vrai historique massivement multi-branches
+(centaines de branches longue durée simultanées) apparaît un jour.
+
 ### P1.2 — Zéro test côté client (HIGH)
 **Constat** : `package.json` racine — `"test"` ne lance que `-w server`.
 Aucun fichier `*.test.*`/`*.spec.*` dans `client/`, aucune config
