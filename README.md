@@ -50,7 +50,9 @@ without editing it.
 > This list is updated as major features land, not for implementation
 > details — see the Git history for that.
 
-Architecture and technical decisions: [docs/PLAN.md](docs/PLAN.md).
+Architecture and technical decisions: [docs/PLAN.md](docs/PLAN.md). Known
+issues, tech debt, and perf/test-coverage gaps not yet addressed:
+[docs/AUDIT.md](docs/AUDIT.md).
 
 ## Install
 
