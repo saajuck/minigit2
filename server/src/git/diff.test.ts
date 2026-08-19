@@ -1,5 +1,44 @@
 import { describe, expect, it } from "vitest";
-import { parseNumstat } from "./diff";
+import { parseNameStatus, parseNumstat } from "./diff";
+
+describe("parseNameStatus", () => {
+  it("parses an added file", () => {
+    expect(parseNameStatus("A\tsrc/new.ts")).toEqual([{ path: "src/new.ts", status: "added" }]);
+  });
+
+  it("parses a deleted file", () => {
+    expect(parseNameStatus("D\tsrc/old.ts")).toEqual([{ path: "src/old.ts", status: "deleted" }]);
+  });
+
+  it("parses a modified file", () => {
+    expect(parseNameStatus("M\tsrc/existing.ts")).toEqual([{ path: "src/existing.ts", status: "modified" }]);
+  });
+
+  it("parses a rename, keeping both the old and new path", () => {
+    // git's real --name-status rename lines carry a similarity percentage suffix on the code
+    // (e.g. "R100"), not a bare "R".
+    expect(parseNameStatus("R100\tsrc/old.ts\tsrc/new.ts")).toEqual([
+      { path: "src/new.ts", oldPath: "src/old.ts", status: "renamed" },
+    ]);
+  });
+
+  it("parses multiple records", () => {
+    const output = "A\tsrc/new.ts\nM\tsrc/existing.ts\nD\tsrc/old.ts";
+    expect(parseNameStatus(output)).toEqual([
+      { path: "src/new.ts", status: "added" },
+      { path: "src/existing.ts", status: "modified" },
+      { path: "src/old.ts", status: "deleted" },
+    ]);
+  });
+
+  it("ignores blank lines", () => {
+    expect(parseNameStatus("A\tsrc/new.ts\n\n")).toEqual([{ path: "src/new.ts", status: "added" }]);
+  });
+
+  it("returns an empty list for empty input", () => {
+    expect(parseNameStatus("")).toEqual([]);
+  });
+});
 
 describe("parseNumstat", () => {
   it("parses a plain added/modified file", () => {
