@@ -4,8 +4,10 @@ import { getCommitFileList, getCommitFilePatch } from "../git/diff";
 import { isMissingObjectError } from "../git/errorClassification";
 import { getFilesHotspot } from "../git/hotspot";
 import { resolveRepo } from "../middleware/resolveRepo";
+import { validateHashParam } from "../middleware/validateRef";
 
 export const diffRouter = Router({ mergeParams: true });
+diffRouter.param("hash", validateHashParam);
 
 const COMMIT_NOT_FOUND_MESSAGE =
   "This commit is no longer in the repository — history may have been rewritten or pruned since the graph was loaded.";

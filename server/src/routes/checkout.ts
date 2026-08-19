@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { CheckoutConflictError, checkoutRef } from "../git/checkout";
+import { isUnsafeRef } from "../git/exec";
 import { getRepoStatus } from "../git/status";
 import { resolveRepo } from "../middleware/resolveRepo";
 
@@ -9,6 +10,10 @@ checkoutRouter.post("/", resolveRepo, async (req, res) => {
   const ref = req.body?.ref;
   if (typeof ref !== "string" || ref.trim() === "") {
     res.status(400).json({ error: "invalid_ref", message: "ref is required" });
+    return;
+  }
+  if (isUnsafeRef(ref)) {
+    res.status(400).json({ error: "invalid_ref", message: "Invalid ref." });
     return;
   }
 
