@@ -17,6 +17,40 @@ own machine.
 
 Click a commit → its diff panel opens. That's the whole interaction model.
 
+<p align="center">
+  <img src="docs/media/demo-diffnav.gif" alt="Navigating a diff in minigit2: opening a file, switching to blame, collapsing the file list, and swapping themes" width="820">
+</p>
+
+Inside a diff: open a file to read its patch, flip it to **blame** to see who
+wrote each line, collapse the file list or commit message when you only need
+one of them, and swap theme — all without leaving the panel.
+
+## Why minigit2 over the git CLI
+
+The CLI stays in charge of anything that changes history — this is a
+companion for the part of your workflow that's just *looking*, not a
+replacement for `git` itself.
+
+- **The graph is drawn, not parsed.** `git log --graph` gives you ASCII art
+  you decode line by line; minigit2 lays out branches, merges, and lanes as
+  an actual graph you scan at a glance.
+- **Click instead of remembering flags.** No more reaching for
+  `git show <hash>`, `git diff a..b`, or `git log --follow -- path` — click a
+  commit for its diff, click a file for its blame, Ctrl/Cmd-click a second
+  commit to compare it against the first.
+- **One search box.** `author:`, `file:`, `branch:`, `after:`/`before:` in a
+  single query, matches highlighted in place — instead of chaining
+  `--author`, `--`, and date-range flags by hand.
+- **Read-only by construction.** There's no staging area, no commit button,
+  no rebase UI — nothing in the app can rewrite history, so it's safe to
+  hand to anyone browsing a repo, including people who don't know git well
+  enough to be trusted with it yet.
+- **Multi-repo from one sidebar.** Switch between repos by clicking a card
+  instead of `cd`-ing between terminal tabs.
+- **A real window, not a browser tab.** Ships as a local desktop app (see
+  [Install](#install)) — no address bar, no tab clutter, nothing to expose
+  beyond `127.0.0.1`. And it's free and open source.
+
 ## Features
 
 - **Multi-repo**: add a repo by absolute path or via a built-in folder
