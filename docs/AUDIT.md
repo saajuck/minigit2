@@ -233,8 +233,26 @@ process, invalidée via le signal fs-watch déjà existant
 JSON lu puis réécrit sans verrou — deux `addRepo`/`removeRepo` concurrents
 (double-clic, deux onglets) se perdent l'un l'autre (lost update). Aucun
 test.
-**Action** : sérialiser les écritures (mutex en mémoire ou write-through
-avec verrou fichier), ajouter un test de concurrence.
+
+**Investigation (traité)** : `addRepo`/`removeRepo` sont des fonctions
+synchrones sans aucun `await` entre leur `load()` et leur `save()`. La
+boucle d'événements Node étant single-thread et non préemptive, cette
+séquence lecture-modification-écriture s'exécute donc toujours d'un bloc
+avant qu'un autre handler de requête n'ait la main — même si deux `POST
+/api/repos` concurrents peuvent se doubler jusqu'au point où ils appellent
+`addRepo` (chacun attend d'abord `assertValidRepoPath`, qui est async), le
+read-modify-write lui-même ne peut pas s'entrelacer. **Décision : pas de
+mutex/verrou fichier ajouté** — le risque décrit ne se reproduit pas dans
+la conception actuelle (un seul process serveur). Un vrai risque résiduel,
+plus étroit, existe seulement entre deux process serveur distincts pointant
+sur le même `~/.minigit-gui/repos.json` (ex. deux `npm run dev` en
+parallèle) — non traité, jugé hors scope pour un outil desktop mono-process.
+Ajouté à la place : `MINIGIT2_CONFIG_DIR` (override testable) +
+`repoStore.test.ts`, dont un test de concurrence qui simule l'écart async
+réel (20 `addRepo` lancés via `Promise.all` avec un délai variable avant
+chacun) et vérifie qu'aucune écriture n'est perdue — ce test échouerait si
+l'invariant "pas d'`await` entre `load()` et `save()`" était cassé par un
+futur changement (ex. passage à `fs/promises`).
 
 ### P2.3 — Double comptage des "nouveaux commits" (MEDIUM)
 **Fichier** : `client/src/App.tsx:160-179,241-250,257-266`.
