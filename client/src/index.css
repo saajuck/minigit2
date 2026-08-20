@@ -566,6 +566,20 @@
   overflow: hidden;
 }
 
+.diff-meta {
+  /* A flex item's default min-height is `auto`, which refuses to shrink below its own content's
+   * natural height — without capping that here, a long commit body pushes the file list (and
+   * even the rest of the header itself: author/date/parents) straight out of .diff-panel's
+   * `overflow: hidden` bottom edge, with no way to scroll down to any of it. Capped + scrollable
+   * on its own instead, so an oversized message scrolls within its own header area rather than
+   * evicting everything below it. min-height: 0 lets it shrink freely below max-height too, for
+   * the ordinary case of a short one-line subject with no body at all. */
+  max-height: 220px;
+  min-height: 0;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
 .diff-hash {
   font-family: var(--font-mono);
   font-size: 12px;
