@@ -75,6 +75,15 @@ if (existsSync(clientDist)) {
   app.get("*", (_req, res) => {
     res.sendFile(path.join(clientDist, "index.html"));
   });
+} else if (clientDist) {
+  // resolveClientDist did find a plausible path (unlike its own "couldn't even determine one"
+  // case above, already warned there) — it just doesn't exist on disk yet, almost always because
+  // `npm start` was run without `npm run build` first. Previously this fell straight through to
+  // Express's default "Cannot GET /" with zero indication of why.
+  console.warn(
+    `minigit2: no client build found at ${clientDist} — the API still works, but GET / (and any ` +
+      `other non-/api route) will 404. Run "npm run build" first, or "npm run dev" for local development.`,
+  );
 }
 
 const server = app.listen(PORT, "127.0.0.1", () => {
