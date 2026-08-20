@@ -29,6 +29,13 @@ export default function FileChangeList({ files, theme, fetchPatch, fetchBlame, h
   const [viewMode, setViewMode] = useState<ViewMode>(() =>
     localStorage.getItem(VIEW_MODE_KEY) === "tree" ? "tree" : "list",
   );
+  // Collapsing hides the file list below the toolbar entirely — useful to reclaim space while
+  // reading the commit message/hotspot above it, without losing the list itself (still one click
+  // away). Resets to expanded on each new commit/compare/local-diff, since DiffPanel remounts
+  // this component per selection (see its `key={diff.hash}` etc.) — a momentary "get this out of
+  // my way for now" action tied to the current view, not a sticky preference like the view-mode
+  // toggle below (which does persist, via localStorage).
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(VIEW_MODE_KEY, viewMode);
@@ -49,42 +56,48 @@ export default function FileChangeList({ files, theme, fetchPatch, fetchBlame, h
   }
 
   return (
-    <div className="diff-files">
+    <div className={collapsed ? "diff-files diff-files-collapsed" : "diff-files"}>
       <div className="diff-files-toolbar">
-        <span className="diff-files-count">
+        <button type="button" className="diff-files-toggle" onClick={() => setCollapsed((c) => !c)}>
+          <span className="diff-files-chevron" style={{ transform: `rotate(${collapsed ? 0 : 90}deg)` }}>
+            <ChevronRightIcon />
+          </span>
           {files.length} file{files.length === 1 ? "" : "s"} changed
-        </span>
-        <div className="diff-view-mode-toggle">
-          <button
-            type="button"
-            className={viewMode === "list" ? "active" : ""}
-            title="List view"
-            aria-label="List view"
-            onClick={() => setViewMode("list")}
-          >
-            <ListIcon />
-          </button>
-          <button
-            type="button"
-            className={viewMode === "tree" ? "active" : ""}
-            title="Tree view"
-            aria-label="Tree view"
-            onClick={() => setViewMode("tree")}
-          >
-            <FolderTreeIcon />
-          </button>
-        </div>
+        </button>
+        {!collapsed && (
+          <div className="diff-view-mode-toggle">
+            <button
+              type="button"
+              className={viewMode === "list" ? "active" : ""}
+              title="List view"
+              aria-label="List view"
+              onClick={() => setViewMode("list")}
+            >
+              <ListIcon />
+            </button>
+            <button
+              type="button"
+              className={viewMode === "tree" ? "active" : ""}
+              title="Tree view"
+              aria-label="Tree view"
+              onClick={() => setViewMode("tree")}
+            >
+              <FolderTreeIcon />
+            </button>
+          </div>
+        )}
       </div>
-      {viewMode === "list" ? (
-        <VirtualFileList files={files} renderFile={renderFile} />
-      ) : (
-        // Not virtualized: a directory's children can collapse/expand at any depth, so the set
-        // of "visible" rows isn't a simple slice of `files` the way the flat list's is — same
-        // simplification the tree view already made for search/focus dimming elsewhere.
-        <div className="diff-files-scroll">
-          <FileTree files={files} renderFile={renderFile} />
-        </div>
-      )}
+      {!collapsed &&
+        (viewMode === "list" ? (
+          <VirtualFileList files={files} renderFile={renderFile} />
+        ) : (
+          // Not virtualized: a directory's children can collapse/expand at any depth, so the set
+          // of "visible" rows isn't a simple slice of `files` the way the flat list's is — same
+          // simplification the tree view already made for search/focus dimming elsewhere.
+          <div className="diff-files-scroll">
+            <FileTree files={files} renderFile={renderFile} />
+          </div>
+        ))}
     </div>
   );
 }
