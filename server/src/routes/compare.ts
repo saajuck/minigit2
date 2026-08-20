@@ -1,21 +1,13 @@
-import { Router, type Request, type Response } from "express";
+import { Router, type Request } from "express";
 import { getCompareFileList, getCompareFilePatch } from "../git/diff";
-import { isMissingObjectError } from "../git/errorClassification";
 import { isUnsafeRef } from "../git/exec";
 import { resolveRepo } from "../middleware/resolveRepo";
+import { respondGitError } from "./errorResponse";
 
 export const compareRouter = Router({ mergeParams: true });
 
 const COMMIT_NOT_FOUND_MESSAGE =
   "One of these commits is no longer in the repository — history may have been rewritten or pruned since the graph was loaded.";
-
-function respondGitError(res: Response, err: unknown) {
-  if (isMissingObjectError(err)) {
-    res.status(404).json({ error: "commit_not_found", message: COMMIT_NOT_FOUND_MESSAGE });
-    return;
-  }
-  res.status(500).json({ error: "git_error", message: (err as Error).message });
-}
 
 function readFromTo(req: Request): { from: string; to: string } | null {
   const from = req.query.from;
@@ -39,7 +31,7 @@ compareRouter.get("/", resolveRepo, async (req, res) => {
     const compare = await getCompareFileList(req.repo!.path, refs.from, refs.to);
     res.json(compare);
   } catch (err) {
-    respondGitError(res, err);
+    respondGitError(res, err, COMMIT_NOT_FOUND_MESSAGE);
   }
 });
 
@@ -54,6 +46,6 @@ compareRouter.get("/file", resolveRepo, async (req, res) => {
     const patch = await getCompareFilePatch(req.repo!.path, refs.from, refs.to, filePath);
     res.json({ path: filePath, patch });
   } catch (err) {
-    respondGitError(res, err);
+    respondGitError(res, err, COMMIT_NOT_FOUND_MESSAGE);
   }
 });
