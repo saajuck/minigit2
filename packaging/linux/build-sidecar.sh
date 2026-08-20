@@ -8,6 +8,12 @@
 # must already be available to build from (not to run — the *output* is self-contained).
 set -euo pipefail
 
+# Every path variable below (ROOT_DIR, OUT_DIR, OUT_BIN, WORK_DIR) is double-quoted at each use
+# site, so spaces/unicode in any of them (a checkout under a path like "My Projects", a non-ASCII
+# username) are handled correctly — verified by inspection rather than assumed, since CI's own
+# runner paths are always plain ASCII and would never exercise this. Keep new path-using lines
+# quoted the same way; an accidentally-unquoted expansion here would only break on exactly the
+# kind of path CI never tests.
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 TARGET_TRIPLE="${MINIGIT2_TARGET_TRIPLE:-x86_64-unknown-linux-gnu}"
 OUT_DIR="$ROOT_DIR/src-tauri/binaries"

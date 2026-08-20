@@ -1,0 +1,13 @@
+version: 2
+updates:
+  # npm workspaces monorepo (root, client, server, shared) — a single "/" directory entry covers
+  # every workspace listed in the root package.json's "workspaces" field.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

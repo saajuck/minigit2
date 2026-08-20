@@ -30,7 +30,12 @@ function resolveClientDist(): string {
   try {
     const dir = path.dirname(fileURLToPath(import.meta.url));
     return path.resolve(dir, "../../client/dist");
-  } catch {
+  } catch (err) {
+    console.warn(
+      "minigit2: could not resolve the client dist directory (MINIGIT2_CLIENT_DIST is unset and " +
+        "import.meta.url is unresolvable) — static file serving is disabled; the API still works.",
+      err,
+    );
     return "";
   }
 }

@@ -369,40 +369,53 @@ qu'un TODO silencieux.
 
 ## P3 — Sévérité basse / polish
 
-- **P3.1** — Conventions d'erreur incohérentes entre routes serveur : `respondGitError`
-  dupliqué (pas partagé) entre `diff.ts`/`compare.ts`, `checkout`/`branches`/
-  `reflog`/`stash`/`status` renvoient un 500 `git_error` plat pour la même
-  classe d'échec, `diff.ts:54` invente `hotspot_error`, `fetch.ts:12` utilise
-  502 là où le reste utilise 500/404. Extraire un helper d'erreur partagé.
-- **P3.2** — `server/src/index.ts:27-35` (`resolveClientDist`) : échec
-  silencieux (retourne `""`) si `MINIGIT2_CLIENT_DIST` est absent et
-  `import.meta.url` échoue en binaire SEA packagé — ajouter un log
-  d'avertissement plutôt qu'un silence total.
-- **P3.3** — `packaging/linux/build-sidecar.sh:9-16` et l'équivalent Windows :
-  quoting de chemin non vérifié pour espaces/unicode — non exercé par CI
-  (chemins runner toujours ASCII), fragilité latente à documenter au moins
-  en commentaire.
-- **P3.4** — `client/src/index.css` : monolithe de 1145 lignes/~157
-  sélecteurs, pas de découpage par composant — pas cassé, juste un risque de
-  maintenabilité à terme.
-- **P3.5** — `docs/PLAN.md` : le stash est listé comme non-objectif complet,
-  mais le stash **en lecture seule** est livré (`server/src/git/stash.ts`,
-  `routes/stash.ts`, README) — préciser "pas de création/apply de stash"
-  plutôt que "stash" tout court en non-objectif (regrouper avec P1.5).
-- **P3.6** — `client/src/components/CopyableText.tsx:19` :
-  `navigator.clipboard.writeText(...)` sans `.catch` — un échec (clipboard
-  refusé, contexte non sécurisé) échoue silencieusement, pas de toast
-  d'erreur.
-- **P3.7** — `client/src/App.tsx:397-400` : parsing `after:`/`before:` via
-  `new Date(str)` nu, sensible au fuseau horaire aux limites de journée.
-- **P3.8** — Hygiène dépendances : pas de config dependabot/renovate dans
-  `.github/`, `typescript@^5.6.3` dupliqué à l'identique dans les 3
-  `package.json` (racine/client/server) plutôt que centralisé.
-- **P3.9** — `server/src/routes/fs.ts:10-11` : `path.resolve` ouvert par
-  design, mais combiné à P0.1 (CSRF-via-GET), une page hostile peut aussi
-  énumérer des noms de dossiers n'importe où sur le disque via
-  `/api/fs?path=...` (noms seulement, pas de contenu — cohérent avec le
-  modèle "by design" existant, sévérité basse en soi mais à corriger avec P0.1).
+- **P3.1** — traité : `respondGitError` extrait dans
+  `server/src/routes/errorResponse.ts`, utilisé par `diff`/`compare`/
+  `checkout`/`branches`/`reflog`/`stash`/`status`/`localDiff`/`search`.
+  `fetch.ts` normalisé sur 500 (gardant son propre code `fetch_error`,
+  intentionnellement distinct de `git_error` — c'est cette string, pas le
+  status HTTP, que `SILENT_CODES` côté client utilise pour ne pas toaster).
+  `diff.ts`'s `hotspot_error` laissé tel quel, même raison, déjà commenté
+  dans le code.
+- **P3.2** — traité : `resolveClientDist` (`server/src/index.ts`) logue un
+  `console.warn` avant de retourner `""` sur le chemin d'échec silencieux.
+- **P3.3** — vérifié plutôt que corrigé : relecture ligne par ligne des deux
+  `build-sidecar.sh` (Linux/Windows) — chaque variable de chemin
+  (`ROOT_DIR`/`OUT_DIR`/`OUT_BIN`/`WORK_DIR`) est déjà entre guillemets à
+  chaque usage, aucune fragilité réelle trouvée. Commentaire ajouté en tête
+  de chaque script pour que ce ne soit pas re-vérifié à l'aveugle par un
+  futur audit.
+- **P3.4** — **Décision : ne pas implémenter.** `client/src/index.css` fait
+  maintenant 1148 lignes. Un découpage par composant sans risque
+  fonctionnel demanderait soit une vraie migration CSS Modules/Sass (gros
+  chantier, tous les composants à toucher), soit un simple split en
+  plusieurs fichiers `.css` importés dans l'ordre (risque faible mais réel
+  de rupture de cascade si l'ordre n'est pas parfaitement reproduit, sur
+  ~157 sélecteurs à catégoriser correctement) — pour un gain purement de
+  navigation, aucun bug ni gain de perf. Même calcul risque/payoff que
+  P1.1ter/P2.9 : skip documenté plutôt que tenté. Revisiter si le fichier
+  continue de grossir significativement.
+- **P3.5** — traité (voir plus haut : `docs/PLAN.md` déjà corrigé avec P1.5).
+- **P3.6** — traité : `CopyableText.tsx` a maintenant un `.catch` sur
+  `navigator.clipboard.writeText(...)`, toast "Couldn't copy to clipboard."
+  sur échec au lieu d'un silence total.
+- **P3.7** — traité, en corrigeant le vrai bug plutôt qu'en le documentant
+  seulement : nouveau `client/src/search/dateBoundary.ts`
+  (`parseDateBoundary`, testé) — une valeur `YYYY-MM-DD` nue est désormais
+  interprétée comme minuit **local** (début de journée pour `after:`, fin de
+  journée pour `before:`) plutôt que minuit UTC (comportement natif de
+  `new Date("YYYY-MM-DD")`), qui excluait silencieusement les commits de la
+  soirée dans tout fuseau à l'ouest d'UTC.
+- **P3.8** — traité : `.github/dependabot.yml` ajouté (écosystèmes `npm` et
+  `github-actions`, hebdomadaire). `typescript@^5.6.3` triplé dans les 3
+  `package.json` laissé tel quel comme demandé — non-triviale à centraliser
+  proprement dans des npm workspaces sans risquer une divergence de version
+  entre workspaces au build.
+- **P3.9** — traité : commentaire ajouté dans `server/src/routes/fs.ts`
+  reliant explicitement son `path.resolve` ouvert par design au modèle de
+  menace CSRF-via-GET de P0.1 (aucun changement de comportement — sévérité
+  déjà jugée basse, juste pour qu'un futur audit ne le re-découvre pas comme
+  un finding séparé).
 
 ## Non-findings notés (pour éviter qu'un futur audit les re-signale)
 
