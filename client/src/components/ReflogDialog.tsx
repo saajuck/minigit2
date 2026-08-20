@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { api } from "../api/client";
 import CopyableText from "./CopyableText";
+import Dialog from "./Dialog";
 
 interface Props {
   repoId: string;
@@ -31,40 +32,37 @@ export default function ReflogDialog({ repoId, onClose }: Props) {
   });
 
   return (
-    <div className="dialog-backdrop" onClick={onClose}>
-      <div className="dialog browser-dialog" onClick={(e) => e.stopPropagation()}>
-        <div className="dialog-title">Reflog</div>
-        {error && <p className="error">{error.message}</p>}
-        {!error && entries === null && <p className="muted">Loading…</p>}
-        {!error && entries !== null && entries.length === 0 && <p className="muted">No reflog entries.</p>}
-        {!error && entries !== null && entries.length > 0 && (
-          <div ref={scrollRef} className="entry-list">
-            <div style={{ position: "relative", height: virtualizer.getTotalSize() }}>
-              {virtualizer.getVirtualItems().map((row) => {
-                const entry = entries[row.index]!;
-                return (
-                  <div
-                    key={row.key}
-                    data-index={row.index}
-                    className="entry-list-row"
-                    style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${row.start}px)` }}
-                  >
-                    <CopyableText className="entry-list-hash" value={entry.hash} display={entry.shortHash} />
-                    <span className="entry-list-subject">{entry.action}</span>
-                    <span className="entry-list-meta">{formatDate(entry.date)}</span>
-                  </div>
-                );
-              })}
-            </div>
+    <Dialog title="Reflog" onClose={onClose} wide>
+      {error && <p className="error">{error.message}</p>}
+      {!error && entries === null && <p className="muted">Loading…</p>}
+      {!error && entries !== null && entries.length === 0 && <p className="muted">No reflog entries.</p>}
+      {!error && entries !== null && entries.length > 0 && (
+        <div ref={scrollRef} className="entry-list">
+          <div style={{ position: "relative", height: virtualizer.getTotalSize() }}>
+            {virtualizer.getVirtualItems().map((row) => {
+              const entry = entries[row.index]!;
+              return (
+                <div
+                  key={row.key}
+                  data-index={row.index}
+                  className="entry-list-row"
+                  style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${row.start}px)` }}
+                >
+                  <CopyableText className="entry-list-hash" value={entry.hash} display={entry.shortHash} />
+                  <span className="entry-list-subject">{entry.action}</span>
+                  <span className="entry-list-meta">{formatDate(entry.date)}</span>
+                </div>
+              );
+            })}
           </div>
-        )}
-        <div className="dialog-actions">
-          <button type="button" className="btn btn-secondary" onClick={onClose}>
-            Close
-          </button>
         </div>
+      )}
+      <div className="dialog-actions">
+        <button type="button" className="btn btn-secondary" onClick={onClose}>
+          Close
+        </button>
       </div>
-    </div>
+    </Dialog>
   );
 }
 

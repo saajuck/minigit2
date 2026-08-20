@@ -3,6 +3,7 @@ import type { BranchInfo } from "@minigit2/shared";
 import { api } from "../api/client";
 import { TargetIcon } from "../design-system/icons";
 import CopyableText from "./CopyableText";
+import Dialog from "./Dialog";
 
 interface Props {
   repoId: string;
@@ -32,39 +33,36 @@ export default function BranchesDialog({
   const error = branchesQuery.error as Error | null;
 
   return (
-    <div className="dialog-backdrop" onClick={onClose}>
-      <div className="dialog browser-dialog" onClick={(e) => e.stopPropagation()}>
-        <div className="dialog-title">Branches</div>
-        {error && <p className="error">{error.message}</p>}
-        {!error && data === null && <p className="muted">Loading…</p>}
-        {!error && data && (
-          <>
-            <BranchGroup
-              title="Local"
-              branches={data.local}
-              defaultBranch={data.defaultBranch}
-              focusedNames={focusedNames}
-              onCheckoutRef={onCheckoutRef}
-              onToggleFocusRef={onToggleFocusRef}
-            />
-            <BranchGroup
-              title="Remote"
-              branches={data.remote}
-              defaultBranch={data.defaultBranch}
-              qualifyDefault={(name) => name.endsWith(`/${data.defaultBranch}`)}
-              focusedNames={focusedNames}
-              onCheckoutRef={onCheckoutRef}
-              onToggleFocusRef={onToggleFocusRef}
-            />
-          </>
-        )}
-        <div className="dialog-actions">
-          <button type="button" className="btn btn-secondary" onClick={onClose}>
-            Close
-          </button>
-        </div>
+    <Dialog title="Branches" onClose={onClose} wide>
+      {error && <p className="error">{error.message}</p>}
+      {!error && data === null && <p className="muted">Loading…</p>}
+      {!error && data && (
+        <>
+          <BranchGroup
+            title="Local"
+            branches={data.local}
+            defaultBranch={data.defaultBranch}
+            focusedNames={focusedNames}
+            onCheckoutRef={onCheckoutRef}
+            onToggleFocusRef={onToggleFocusRef}
+          />
+          <BranchGroup
+            title="Remote"
+            branches={data.remote}
+            defaultBranch={data.defaultBranch}
+            qualifyDefault={(name) => name.endsWith(`/${data.defaultBranch}`)}
+            focusedNames={focusedNames}
+            onCheckoutRef={onCheckoutRef}
+            onToggleFocusRef={onToggleFocusRef}
+          />
+        </>
+      )}
+      <div className="dialog-actions">
+        <button type="button" className="btn btn-secondary" onClick={onClose}>
+          Close
+        </button>
       </div>
-    </div>
+    </Dialog>
   );
 }
 
