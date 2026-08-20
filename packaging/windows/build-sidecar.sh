@@ -10,6 +10,8 @@
 # chmod is dropped since executability on Windows isn't permission-bit based.
 set -euo pipefail
 
+# Every path variable below (ROOT_DIR, OUT_DIR, OUT_BIN, WORK_DIR) is double-quoted at each use
+# site — see the identical note in packaging/linux/build-sidecar.sh, same reasoning applies here.
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 TARGET_TRIPLE="${MINIGIT2_TARGET_TRIPLE:-x86_64-pc-windows-msvc}"
 OUT_DIR="$ROOT_DIR/src-tauri/binaries"

@@ -1,4 +1,5 @@
 import { useState, type MouseEvent } from "react";
+import { showToast } from "../design-system/toast";
 
 interface Props {
   value: string;
@@ -16,10 +17,17 @@ export default function CopyableText({ value, display, className, title, stopPro
 
   function handleClick(e: MouseEvent) {
     if (stopPropagation) e.stopPropagation();
-    navigator.clipboard.writeText(value).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1200);
-    });
+    navigator.clipboard
+      .writeText(value)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1200);
+      })
+      .catch(() => {
+        // Clipboard access refused (permission denied, or a non-secure-context page) — previously
+        // failed silently with no feedback at all.
+        showToast("Couldn't copy to clipboard.");
+      });
   }
 
   return (

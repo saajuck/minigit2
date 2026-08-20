@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { GraphResponse, RepoSummary } from "@minigit2/shared";
 import { ApiRequestError, api } from "./api/client";
 import { ancestorHashes } from "./search/ancestors";
+import { parseDateBoundary } from "./search/dateBoundary";
 import { isQueryEmpty, parseSearchQuery } from "./search/query";
 import AddRepoDialog from "./components/AddRepoDialog";
 import BranchesDialog from "./components/BranchesDialog";
@@ -409,10 +410,8 @@ export default function App() {
     if (isQueryEmpty(parsedQuery)) return [];
     const text = parsedQuery.text.toLowerCase();
     const author = parsedQuery.author?.toLowerCase() ?? null;
-    const after = parsedQuery.after ? new Date(parsedQuery.after) : null;
-    const before = parsedQuery.before ? new Date(parsedQuery.before) : null;
-    const afterValid = after && !Number.isNaN(after.getTime()) ? after : null;
-    const beforeValid = before && !Number.isNaN(before.getTime()) ? before : null;
+    const afterValid = parsedQuery.after ? parseDateBoundary(parsedQuery.after, "start") : null;
+    const beforeValid = parsedQuery.before ? parseDateBoundary(parsedQuery.before, "end") : null;
 
     return focusedNodes.filter((n) => {
       if (
