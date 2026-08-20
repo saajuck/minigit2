@@ -29,7 +29,9 @@ duplicate — you'll just get a second window pointed at the same backend.
    menu like any other installed app.
 2. The installer isn't code-signed (no certificate), so Windows SmartScreen will likely warn
    about an "unrecognized app" the first time — this is expected for an unsigned open-source
-   build, not a sign of a bad download; choose "More info" → "Run anyway".
+   build, not a sign of a bad download; choose "More info" → "Run anyway". Known limitation, not
+   currently planned: a code-signing certificate has an ongoing cost that isn't justified yet for
+   a project this size — revisit if that changes.
 3. To uninstall, use **Settings → Apps** (or the classic **Programs and Features**) like any
    other Windows program. To update, just download and run the newer installer from the
    Releases page — it upgrades in place, same as re-running the Ubuntu AppImage's own download
