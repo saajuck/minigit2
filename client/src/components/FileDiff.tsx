@@ -1,8 +1,15 @@
-import { useState, type CSSProperties } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { BlameResponse, FileDiffSummary, FileHotspot } from "@minigit2/shared";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import type { BlameLine, BlameResponse, FileDiffSummary, FileHotspot } from "@minigit2/shared";
 import { getPalette, type LaneColor, type Theme } from "../design-system/palette";
 import { ChevronRightIcon } from "../design-system/icons";
+
+// Must match .blame-row's fixed CSS height (see index.css) — blame lines never wrap
+// (`.blame-content` is `white-space: pre`), so every row really is this exact height, unlike
+// FileChangeList's file rows which need measureElement because an expanded file's patch is
+// arbitrarily tall.
+const BLAME_ROW_HEIGHT = 20;
 
 export interface Query<T> {
   queryKey: unknown[];
@@ -143,45 +150,70 @@ export default function FileDiff({
         <div className="file-diff-body">
           {blameQuery.isLoading && <p className="muted">Loading…</p>}
           {blameQuery.error && <p className="error">{(blameQuery.error as Error).message}</p>}
-          {blameQuery.data && (
-            <div className="blame-body">
-              {blameQuery.data.lines.map((line, i) => {
-                const isNewGroup = i === 0 || blameQuery.data.lines[i - 1]!.hash !== line.hash;
-                return (
-                  <div className="blame-row" key={i}>
-                    <div className="blame-gutter">
-                      {isNewGroup && (
-                        <>
-                          <img
-                            className="blame-avatar"
-                            src={line.authorAvatarUrl}
-                            alt=""
-                            loading="lazy"
-                            title={`${line.author} <${line.authorEmail}>\n${line.summary}\n${new Date(line.date).toLocaleString()}`}
-                          />
-                          <button
-                            type="button"
-                            className="blame-hash-link"
-                            title={line.summary}
-                            onClick={() => onSelectCommit?.(line.hash)}
-                          >
-                            {line.hash.slice(0, 7)}
-                          </button>
-                          <span className="blame-author" title={line.author}>
-                            {line.author}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                    <div className="blame-line-number">{line.lineNumber}</div>
-                    <div className="blame-content">{line.content}</div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          {blameQuery.data && <BlameBody lines={blameQuery.data.lines} onSelectCommit={onSelectCommit} />}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Windowed blame view — only mounts rows near the scrolled-to viewport, since blame is opened
+ * on files that can run to thousands of lines (blame walks the whole file, not just what's
+ * changed, unlike the diff patch view above). Fixed row height (see BLAME_ROW_HEIGHT) means the
+ * virtualizer never needs to measure — every row really is the same height. */
+function BlameBody({ lines, onSelectCommit }: { lines: BlameLine[]; onSelectCommit?: (hash: string) => void }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: lines.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => BLAME_ROW_HEIGHT,
+    overscan: 20,
+  });
+
+  return (
+    <div ref={scrollRef} className="blame-scroll">
+      <div style={{ position: "relative", height: virtualizer.getTotalSize() }}>
+        {virtualizer.getVirtualItems().map((row) => {
+          const i = row.index;
+          const line = lines[i]!;
+          const isNewGroup = i === 0 || lines[i - 1]!.hash !== line.hash;
+          return (
+            <div
+              key={row.key}
+              data-index={i}
+              className="blame-row"
+              style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${row.start}px)` }}
+            >
+              <div className="blame-gutter">
+                {isNewGroup && (
+                  <>
+                    <img
+                      className="blame-avatar"
+                      src={line.authorAvatarUrl}
+                      alt=""
+                      loading="lazy"
+                      title={`${line.author} <${line.authorEmail}>\n${line.summary}\n${new Date(line.date).toLocaleString()}`}
+                    />
+                    <button
+                      type="button"
+                      className="blame-hash-link"
+                      title={line.summary}
+                      onClick={() => onSelectCommit?.(line.hash)}
+                    >
+                      {line.hash.slice(0, 7)}
+                    </button>
+                    <span className="blame-author" title={line.author}>
+                      {line.author}
+                    </span>
+                  </>
+                )}
+              </div>
+              <div className="blame-line-number">{line.lineNumber}</div>
+              <div className="blame-content">{line.content}</div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
