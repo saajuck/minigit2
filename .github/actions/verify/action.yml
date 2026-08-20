@@ -1,0 +1,30 @@
+name: Verify
+description: >-
+  Install dependencies and run typecheck/test/build — the sequence every CI and release job
+  needs before its own platform-specific steps. A composite action (steps within the calling
+  job) rather than a workflow_call reusable workflow, since release.yml's jobs need the npm
+  install/build state to carry into their own later steps (sidecar build, tauri build) on the
+  same runner — splitting that into a separate reusable-workflow job would mean re-installing
+  or passing artifacts across a job boundary for no benefit.
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+
+    - name: Install npm dependencies
+      shell: bash
+      run: npm ci
+
+    - name: Typecheck
+      shell: bash
+      run: npm run typecheck
+
+    - name: Test
+      shell: bash
+      run: npm run test
+
+    - name: Build
+      shell: bash
+      run: npm run build
