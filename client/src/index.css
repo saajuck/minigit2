@@ -893,24 +893,27 @@
   overflow-x: auto;
 }
 
-.blame-body {
+.blame-scroll {
   font-family: var(--font-mono);
   font-size: 11.5px;
   line-height: 1.6;
-  overflow-x: auto;
+  overflow: auto;
+  max-height: 480px;
   padding: 6px 0 10px;
-  /* .blame-row is display:contents (see below) so its 3 children land here as direct grid
-   * items — one shared set of column tracks for every line, instead of each row sizing its
-   * own gutter/content columns independently and drifting out of alignment with its
-   * neighbors (the previous bug: display:grid was on .blame-row itself). */
+}
+
+/* Each row carries its own grid-template-columns (rather than the previous approach of one
+ * shared grid on the parent with .blame-row as display:contents) because virtualized rows are
+ * absolutely positioned, standalone elements — display:contents on a row the virtualizer moves
+ * independently would detach its children from that row's own position. Same column widths on
+ * every row keeps the gutter/line-number/content aligned down the file regardless. */
+.blame-row {
   display: grid;
   grid-template-columns: minmax(90px, 160px) 32px 1fr;
   align-items: center;
   column-gap: 6px;
-}
-
-.blame-row {
-  display: contents;
+  height: 20px;
+  box-sizing: border-box;
 }
 
 .blame-gutter {
@@ -918,7 +921,7 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
-  height: 1.6em;
+  height: 100%;
   padding-left: 10px;
 }
 
