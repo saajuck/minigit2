@@ -152,4 +152,22 @@ describe("layoutGraph", () => {
     expect(byHash.get("X")!.colorGroup).toBe(0);
     expect(byHash.get("Y")!.colorGroup).toBe(1);
   });
+
+  it("assigns a colorGroup to a merge's second parent when it's outside the fetched history (shallow-clone boundary)", () => {
+    // "missing" is never itself in `commits`, and — unlike a first parent — is never visited by
+    // assignColorGroups' first-parent-only walk either (that only ever follows parents[0]), so
+    // it reaches layoutGraph's edge-building loop with no colorGroup assigned yet at all.
+    const commits = [commit("M", ["P1", "missing"]), commit("P1", [])];
+    const { nodes, edges } = layoutGraph(commits);
+
+    const byHash = new Map(nodes.map((n) => [n.hash, n]));
+    const mergeEdge = edges.find((e) => e.to === "missing")!;
+    expect(mergeEdge).toBeDefined();
+    // Must be a real number (the whole point — previously `undefined` slipped through here and
+    // got silently dropped by JSON.stringify, violating GraphEdge's colorGroup: number contract).
+    expect(typeof mergeEdge.colorGroup).toBe("number");
+    // Not lumped in with M/P1's shared group — nothing is actually known about "missing", so it
+    // gets its own fresh identity rather than borrowing an unrelated one.
+    expect(mergeEdge.colorGroup).not.toBe(byHash.get("M")!.colorGroup);
+  });
 });

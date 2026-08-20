@@ -21,7 +21,7 @@ export interface GraphLayout {
  * either one pretty much arbitrarily, which is how "master" ends up rendered in a different
  * color than its own preceding commits after a merge.
  */
-function assignColorGroups(commits: RawCommit[]): Map<string, number> {
+function assignColorGroups(commits: RawCommit[]): { colorGroupOf: Map<string, number>; nextGroup: number } {
   const parentsByHash = new Map(commits.map((c) => [c.hash, c.parents]));
   const colorGroupOf = new Map<string, number>();
   let nextGroup = 0;
@@ -36,7 +36,7 @@ function assignColorGroups(commits: RawCommit[]): Map<string, number> {
     }
   }
 
-  return colorGroupOf;
+  return { colorGroupOf, nextGroup };
 }
 
 /**
@@ -48,11 +48,28 @@ function assignColorGroups(commits: RawCommit[]): Map<string, number> {
  * run, so the client colors by colorGroup rather than by the row's current lane.
  */
 export function layoutGraph(commits: RawCommit[]): GraphLayout {
-  const colorGroupOf = assignColorGroups(commits);
+  const { colorGroupOf, nextGroup: initialNextGroup } = assignColorGroups(commits);
+  let nextGroup = initialNextGroup;
   const lanes: (string | null)[] = [];
   const laneOf = new Map<string, number>();
   const nodes: CommitNode[] = [];
   const edges: GraphEdge[] = [];
+
+  // assignColorGroups only walks hashes present in `commits` — a parent hash outside that set
+  // (the boundary of a shallow clone, most plausibly) never gets a group from it. Falling back
+  // to an `as number` cast there left colorGroup silently `undefined` on the wire, violating
+  // GraphEdge's own type. Allocate a fresh group for it here instead, the first time it's seen —
+  // there's nothing else known about that commit, so treating it as its own distinct run is the
+  // least wrong assumption, and later edges referencing it via the same parentHash correctly
+  // reuse the same freshly-allocated group rather than getting yet another new one each time.
+  function resolveColorGroup(hash: string): number {
+    let group = colorGroupOf.get(hash);
+    if (group === undefined) {
+      group = nextGroup++;
+      colorGroupOf.set(hash, group);
+    }
+    return group;
+  }
 
   function firstFreeLane(skip?: number): number {
     for (let i = 0; i < lanes.length; i++) {
@@ -92,7 +109,7 @@ export function layoutGraph(commits: RawCommit[]): GraphLayout {
       // whichever other branch happened to claim that ancestor first. Non-first parents (merge
       // edges) are a different case: they represent another branch merging in, so they keep that
       // branch's own colorGroup via the parent, exactly as before.
-      const colorGroup = i === 0 ? (colorGroupOf.get(commit.hash) as number) : (colorGroupOf.get(parentHash) as number);
+      const colorGroup = i === 0 ? resolveColorGroup(commit.hash) : resolveColorGroup(parentHash);
       edges.push({
         from: commit.hash,
         to: parentHash,
@@ -107,7 +124,7 @@ export function layoutGraph(commits: RawCommit[]): GraphLayout {
       parents: commit.parents,
       row,
       lane,
-      colorGroup: colorGroupOf.get(commit.hash) as number,
+      colorGroup: resolveColorGroup(commit.hash),
       author: commit.author,
       authorEmail: commit.authorEmail,
       authorAvatarUrl: gravatarUrl(commit.authorEmail),
