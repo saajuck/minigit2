@@ -1,7 +1,21 @@
 # minigit2
 
-A local Git graph client: visualize a repo's history and navigate it,
-without editing it.
+**A fast, local Git graph client for browsing history — click a commit, see
+its diff, done.** No staging, no commit, no rebase: just the read side of
+`git log --graph`, done properly, running as a real desktop window on your
+own machine.
+
+<p align="center">
+  <img src="docs/media/screenshot.png" alt="minigit2's commit graph and diff panel, dark theme" width="820">
+</p>
+
+## See it in action
+
+<p align="center">
+  <img src="docs/media/demo.gif" alt="Clicking through commits in minigit2, diff panel updating live" width="820">
+</p>
+
+Click a commit → its diff panel opens. That's the whole interaction model.
 
 ## Features
 
