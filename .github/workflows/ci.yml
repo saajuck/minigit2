@@ -12,24 +12,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Install npm dependencies
-        run: npm ci
-
-      - name: Typecheck
-        run: npm run typecheck
+      - uses: ./.github/actions/verify
 
       - name: Lint
         run: npm run lint
-
-      - name: Test
-        run: npm run test
-
-      - name: Build
-        run: npm run build
 
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
