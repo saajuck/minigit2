@@ -157,23 +157,38 @@ export default function App() {
   // the 30s poll and the SSE watch below, the two paths that refresh in the background without
   // the user having explicitly asked (a manual Refresh click resets the banner outright instead,
   // see its own handler further down).
+  //
+  // The poll's own `fetchRemote` can itself cause the server-side ref move that triggers the SSE
+  // "changed" event, so both paths can call this within the same tick for the same underlying
+  // change. React Query's fetchQuery dedupes the network call by queryKey, but each caller would
+  // otherwise still independently read `previousHashes` before either resolves and independently
+  // add the same newCount — double-counting the banner. refreshInFlightRef makes a second
+  // overlapping call just await the first's in-progress run instead of starting its own.
+  const refreshInFlightRef = useRef<Promise<void> | null>(null);
   const refetchGraphWithNewCommitsCount = useCallback(
-    async (repoId: string) => {
-      const previous = queryClient.getQueryData<GraphResponse>(["graph", repoId]);
-      const previousHashes = new Set((previous?.nodes ?? []).map((n) => n.hash));
-      let updated: GraphResponse | null = null;
-      try {
-        updated = await queryClient.fetchQuery({
-          queryKey: ["graph", repoId],
-          queryFn: ({ signal }) => api.getGraph(repoId, signal),
-        });
-      } catch {
-        updated = null;
-      }
-      if (updated) {
-        const newCount = updated.nodes.filter((n) => !previousHashes.has(n.hash)).length;
-        if (newCount > 0) setNewCommitsCount((count) => count + newCount);
-      }
+    (repoId: string): Promise<void> => {
+      if (refreshInFlightRef.current) return refreshInFlightRef.current;
+      const run = (async () => {
+        const previous = queryClient.getQueryData<GraphResponse>(["graph", repoId]);
+        const previousHashes = new Set((previous?.nodes ?? []).map((n) => n.hash));
+        let updated: GraphResponse | null = null;
+        try {
+          updated = await queryClient.fetchQuery({
+            queryKey: ["graph", repoId],
+            queryFn: ({ signal }) => api.getGraph(repoId, signal),
+          });
+        } catch {
+          updated = null;
+        }
+        if (updated) {
+          const newCount = updated.nodes.filter((n) => !previousHashes.has(n.hash)).length;
+          if (newCount > 0) setNewCommitsCount((count) => count + newCount);
+        }
+      })().finally(() => {
+        refreshInFlightRef.current = null;
+      });
+      refreshInFlightRef.current = run;
+      return run;
     },
     [queryClient],
   );
