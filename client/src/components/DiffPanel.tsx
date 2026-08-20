@@ -5,6 +5,7 @@ import { ExternalLinkIcon } from "../design-system/icons";
 import type { Theme } from "../design-system/palette";
 import { linkifyMessage } from "../git/linkifyMessage";
 import { deriveCommitUrl } from "../git/remoteUrl";
+import CollapsibleSection from "./CollapsibleSection";
 import CopyableText from "./CopyableText";
 import DiffStats from "./DiffStats";
 import FileChangeList from "./FileChangeList";
@@ -152,7 +153,11 @@ export default function DiffPanel({
           )}
         </div>
         <div className="diff-subject">{linkifyMessage(commit.subject, remoteUrl)}</div>
-        {diff.body && <div className="diff-body">{linkifyMessage(diff.body, remoteUrl)}</div>}
+        {diff.body && (
+          <CollapsibleSection title="Commit message">
+            <div className="diff-body">{linkifyMessage(diff.body, remoteUrl)}</div>
+          </CollapsibleSection>
+        )}
         <div className="diff-submeta">
           <img className="commit-avatar" src={commit.authorAvatarUrl} alt="" loading="lazy" />
           {commit.author} · {formatDate(commit.date)} · parents:{" "}
@@ -163,7 +168,9 @@ export default function DiffPanel({
         <p className="muted">No file changes.</p>
       ) : (
         <>
-          <DiffStats files={diff.files} theme={theme} />
+          <CollapsibleSection title="Hotspot" defaultOpen>
+            <DiffStats files={diff.files} theme={theme} />
+          </CollapsibleSection>
           <FileChangeList
             key={diff.hash}
             files={diff.files}
