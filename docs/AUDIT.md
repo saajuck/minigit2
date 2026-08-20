@@ -319,24 +319,44 @@ au niveau SEA/postject plutôt qu'avec une erreur npm claire.
 exacte voulue) dans les `package.json` concernés.
 
 ### P2.9 — `App.tsx` trop gros, aucune extraction en hooks (MEDIUM, dette)
-**Fichier** : `client/src/App.tsx` (705 lignes). Porte la sélection de repo,
+**Fichier** : `client/src/App.tsx` (720 lignes). Porte la sélection de repo,
 le fetch + filtrage du graphe (focus/ancestors), le parsing/matching de
 recherche, le routage de mode diff, l'auto-refresh (poll+SSE), le
-redimensionnement, et l'état ouvert/fermé de 5 dialogs — seulement 12
-`useCallback`/`useMemo` sur tout le fichier. Le vrai coût est cognitif : un
-seul fichier mélange fetching, filtrage et orchestration UI.
-**Action** : extraire en hooks dédiés, ex. `useGraphData(repoId)` (graph +
-poll + SSE + new-commits-count), `useCommitSearch(graph, query)`
-(parsedQuery/matchingNodes/branchFilter/fileFilter), `useBranchFocus(graph)`.
-Pas de changement de comportement, juste de la décomposition.
+redimensionnement, et l'état ouvert/fermé de 5 dialogs — 42 sites
+`useCallback`/`useMemo`/`useEffect`/`useState`/`useRef` sur tout le fichier.
+Le vrai coût est cognitif : un seul fichier mélange fetching, filtrage et
+orchestration UI.
 
-### P2.10 — Dialogs dupliqués (MEDIUM, dette)
-**Fichiers** : `BranchesDialog.tsx`, `StashDialog.tsx`, `ReflogDialog.tsx` —
-chacun réimplémente le même échafaudage backdrop/loading/error/empty/
-entry-list.
-**Action** : factoriser un composant `Dialog` partagé (backdrop + fermeture
-Esc/clic-extérieur déjà présents quelque part probablement, à vérifier) et/ou
-un hook `useEntryListQuery` pour le pattern loading/error/empty commun.
+**Décision : ne pas implémenter.** Contrairement à P2.10 (pure extraction de
+markup, sans risque), les effets ici sont réellement interdépendants — le
+correctif P2.3 de cette même session (dédup du double-comptage entre le poll
+30s et l'écouteur SSE via `refreshInFlightRef`) est un exemple concret de
+cette interdépendance : extraire `useGraphData` sans reproduire exactement
+ce genre de couplage entre effets serait facile à faire subtilement de
+travers (closures obsolètes, tableau de dépendances d'effet incorrect), et
+il n'existe aucun test au niveau de `App.tsx` lui-même (seul le test e2e
+Playwright, qui ne couvre pas recherche/focus/auto-refresh) qui détecterait
+une régression de ce type. Le gain est purement cognitif, pas un bug corrigé
+ni un gain de perf — risque disproportionné par rapport au payoff mesuré.
+Revisiter si `App.tsx` continue de grossir ou si une régression réelle sur
+l'auto-refresh/la recherche apparaît.
+
+### P2.10 — Dialogs dupliqués (MEDIUM, dette) — traité
+**Fichiers** : `BranchesDialog.tsx`, `StashDialog.tsx`, `ReflogDialog.tsx`,
+`RepoPathBrowser.tsx`, `ConfirmCheckoutDialog.tsx`, `AddRepoDialog.tsx` (6
+sites au total, pas seulement les 3 initialement repérés) — chacun
+réimplémentait le même échafaudage backdrop/dialog-box/titre/fermeture.
+
+Factorisé en un composant `Dialog` partagé
+(`client/src/components/Dialog.tsx`, prop `wide` pour la variante
+`.browser-dialog`), utilisé par les 6. Contrairement à `useEntryListQuery`
+évoqué dans l'action d'origine, le contenu (loading/error/empty/liste) reste
+propre à chaque dialog — les formes de données diffèrent trop (liste plate
+pour Reflog/Stash, `{local, remote}` pour Branches, navigation de dossier
+pour le browser) pour un hook générique sans complexifier plus qu'il ne
+simplifie ; seul le shell visuel commun a été extrait. Vérifié en live
+(Playwright + captures d'écran) sur les 5 dialogs cliquables + lecture du
+6ème (markup identique, non testé en live).
 
 ### P2.11 — Signature de code Windows absente (MEDIUM, packaging)
 **Fichier** : `docs/DEPLOY.md:30-32` documente l'avertissement SmartScreen

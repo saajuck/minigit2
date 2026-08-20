@@ -5,6 +5,7 @@ import { api } from "../api/client";
 import type { Theme } from "../design-system/palette";
 import { ChevronRightIcon } from "../design-system/icons";
 import CopyableText from "./CopyableText";
+import Dialog from "./Dialog";
 import FileDiff from "./FileDiff";
 
 interface Props {
@@ -21,26 +22,23 @@ export default function StashDialog({ repoId, theme, onClose }: Props) {
   const entries = stashQuery.data?.entries ?? null;
 
   return (
-    <div className="dialog-backdrop" onClick={onClose}>
-      <div className="dialog browser-dialog" onClick={(e) => e.stopPropagation()}>
-        <div className="dialog-title">Stash</div>
-        {stashQuery.error && <p className="error">{(stashQuery.error as Error).message}</p>}
-        {!stashQuery.error && entries === null && <p className="muted">Loading…</p>}
-        {!stashQuery.error && entries !== null && entries.length === 0 && <p className="muted">No stash entries.</p>}
-        {!stashQuery.error && entries !== null && entries.length > 0 && (
-          <ul className="entry-list">
-            {entries.map((entry) => (
-              <StashRow key={entry.ref} repoId={repoId} entry={entry} theme={theme} />
-            ))}
-          </ul>
-        )}
-        <div className="dialog-actions">
-          <button type="button" className="btn btn-secondary" onClick={onClose}>
-            Close
-          </button>
-        </div>
+    <Dialog title="Stash" onClose={onClose} wide>
+      {stashQuery.error && <p className="error">{(stashQuery.error as Error).message}</p>}
+      {!stashQuery.error && entries === null && <p className="muted">Loading…</p>}
+      {!stashQuery.error && entries !== null && entries.length === 0 && <p className="muted">No stash entries.</p>}
+      {!stashQuery.error && entries !== null && entries.length > 0 && (
+        <ul className="entry-list">
+          {entries.map((entry) => (
+            <StashRow key={entry.ref} repoId={repoId} entry={entry} theme={theme} />
+          ))}
+        </ul>
+      )}
+      <div className="dialog-actions">
+        <button type="button" className="btn btn-secondary" onClick={onClose}>
+          Close
+        </button>
       </div>
-    </div>
+    </Dialog>
   );
 }
 
