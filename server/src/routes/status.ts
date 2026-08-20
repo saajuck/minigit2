@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { getRepoStatus } from "../git/status";
 import { resolveRepo } from "../middleware/resolveRepo";
+import { respondGitError } from "./errorResponse";
 
 export const statusRouter = Router({ mergeParams: true });
 
@@ -9,6 +10,6 @@ statusRouter.get("/", resolveRepo, async (req, res) => {
     const status = await getRepoStatus(req.repo!.path);
     res.json(status);
   } catch (err) {
-    res.status(500).json({ error: "git_error", message: (err as Error).message });
+    respondGitError(res, err);
   }
 });

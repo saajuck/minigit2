@@ -3,6 +3,7 @@ import { CheckoutConflictError, checkoutRef } from "../git/checkout";
 import { isUnsafeRef } from "../git/exec";
 import { getRepoStatus } from "../git/status";
 import { resolveRepo } from "../middleware/resolveRepo";
+import { respondGitError } from "./errorResponse";
 
 export const checkoutRouter = Router({ mergeParams: true });
 
@@ -26,6 +27,6 @@ checkoutRouter.post("/", resolveRepo, async (req, res) => {
       res.status(409).json({ error: "dirty_worktree", message: err.stderr || err.message });
       return;
     }
-    res.status(500).json({ error: "git_error", message: (err as Error).message });
+    respondGitError(res, err);
   }
 });

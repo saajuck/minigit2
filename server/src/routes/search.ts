@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { searchCommitsByPath } from "../git/fileSearch";
 import { resolveRepo } from "../middleware/resolveRepo";
+import { respondGitError } from "./errorResponse";
 
 export const searchRouter = Router({ mergeParams: true });
 
@@ -14,6 +15,6 @@ searchRouter.get("/files", resolveRepo, async (req, res) => {
     const hashes = await searchCommitsByPath(req.repo!.path, pathspec);
     res.json({ hashes });
   } catch (err) {
-    res.status(500).json({ error: "git_error", message: (err as Error).message });
+    respondGitError(res, err);
   }
 });
