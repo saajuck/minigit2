@@ -154,7 +154,7 @@ export default function DiffPanel({
         </div>
         <div className="diff-subject">{linkifyMessage(commit.subject, remoteUrl)}</div>
         {diff.body && (
-          <CollapsibleSection title="Commit message">
+          <CollapsibleSection key={diff.hash} title="Commit message">
             <div className="diff-body">{linkifyMessage(diff.body, remoteUrl)}</div>
           </CollapsibleSection>
         )}
@@ -168,7 +168,7 @@ export default function DiffPanel({
         <p className="muted">No file changes.</p>
       ) : (
         <>
-          <CollapsibleSection title="Hotspot" defaultOpen>
+          <CollapsibleSection key={diff.hash} title="Hotspot" defaultOpen>
             <DiffStats files={diff.files} theme={theme} />
           </CollapsibleSection>
           <FileChangeList
