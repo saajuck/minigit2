@@ -3,27 +3,28 @@ import { parseNameStatus, parseNumstat } from "./diff";
 
 describe("parseNameStatus", () => {
   it("parses an added file", () => {
-    expect(parseNameStatus("A\tsrc/new.ts")).toEqual([{ path: "src/new.ts", status: "added" }]);
+    expect(parseNameStatus("A\0src/new.ts\0")).toEqual([{ path: "src/new.ts", status: "added" }]);
   });
 
   it("parses a deleted file", () => {
-    expect(parseNameStatus("D\tsrc/old.ts")).toEqual([{ path: "src/old.ts", status: "deleted" }]);
+    expect(parseNameStatus("D\0src/old.ts\0")).toEqual([{ path: "src/old.ts", status: "deleted" }]);
   });
 
   it("parses a modified file", () => {
-    expect(parseNameStatus("M\tsrc/existing.ts")).toEqual([{ path: "src/existing.ts", status: "modified" }]);
+    expect(parseNameStatus("M\0src/existing.ts\0")).toEqual([{ path: "src/existing.ts", status: "modified" }]);
   });
 
   it("parses a rename, keeping both the old and new path", () => {
-    // git's real --name-status rename lines carry a similarity percentage suffix on the code
-    // (e.g. "R100"), not a bare "R".
-    expect(parseNameStatus("R100\tsrc/old.ts\tsrc/new.ts")).toEqual([
+    // git's real `-z --name-status` rename records carry a similarity percentage suffix on the
+    // code (e.g. "R100"), not a bare "R", and emit old/new as two separate NUL-terminated fields
+    // rather than git's default `old => new` abbreviation.
+    expect(parseNameStatus("R100\0src/old.ts\0src/new.ts\0")).toEqual([
       { path: "src/new.ts", oldPath: "src/old.ts", status: "renamed" },
     ]);
   });
 
   it("parses multiple records", () => {
-    const output = "A\tsrc/new.ts\nM\tsrc/existing.ts\nD\tsrc/old.ts";
+    const output = "A\0src/new.ts\0M\0src/existing.ts\0D\0src/old.ts\0";
     expect(parseNameStatus(output)).toEqual([
       { path: "src/new.ts", status: "added" },
       { path: "src/existing.ts", status: "modified" },
@@ -31,8 +32,8 @@ describe("parseNameStatus", () => {
     ]);
   });
 
-  it("ignores blank lines", () => {
-    expect(parseNameStatus("A\tsrc/new.ts\n\n")).toEqual([{ path: "src/new.ts", status: "added" }]);
+  it("leaves a non-ASCII path unmangled, unlike git's default C-quoting without -z", () => {
+    expect(parseNameStatus("M\0café.txt\0")).toEqual([{ path: "café.txt", status: "modified" }]);
   });
 
   it("returns an empty list for empty input", () => {

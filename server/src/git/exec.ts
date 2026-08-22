@@ -45,7 +45,10 @@ export async function runGit(cwd: string, args: string[], options: RunGitOptions
     const { stdout, stderr } = await execFileAsync("git", ["-C", cwd, ...args], {
       maxBuffer: 1024 * 1024 * 64,
       timeout: options.timeoutMs,
-      env: options.env ? { ...process.env, ...options.env } : undefined,
+      // Force git's own messages back to English/C regardless of the host's locale: checkout.ts
+      // (and anything else inspecting stderr text) matches on git's stable English wording, which
+      // a translated git install would otherwise silently break.
+      env: { ...process.env, LANG: "C", LC_ALL: "C", ...options.env },
     });
     return { stdout, stderr };
   } catch (err) {
