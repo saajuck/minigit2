@@ -28,7 +28,8 @@ const COMMIT_DELIMITER = "\x01";
 export async function getFilesHotspot(repoPath: string, hash: string): Promise<FilesHotspotResponse> {
   const [paths, { stdout }] = await Promise.all([
     getCommitChangedPaths(repoPath, hash),
-    runGit(repoPath, ["log", "--all", "--name-only", `--format=${COMMIT_DELIMITER}%ae`]),
+    // `-z`: leaves paths unquoted (see getCommitChangedPaths) so they match `wanted` below.
+    runGit(repoPath, ["log", "--all", "-z", "--name-only", `--format=${COMMIT_DELIMITER}%ae`]),
   ]);
   return parseHotspotLog(stdout, new Set(paths));
 }
@@ -38,11 +39,15 @@ export function parseHotspotLog(output: string, wanted: Set<string>): FilesHotsp
   // The first split segment is whatever precedes the very first delimiter (empty for real git
   // output) — drop it rather than trying to parse it as a commit.
   for (const chunk of output.split(COMMIT_DELIMITER).slice(1)) {
-    const emailEnd = chunk.indexOf("\n");
+    const emailEnd = chunk.indexOf("\0");
     if (emailEnd === -1) continue;
     const email = chunk.slice(0, emailEnd);
-    for (const line of chunk.slice(emailEnd + 1).split("\n")) {
-      const path = line.trim();
+    // With `-z`, git NUL-terminates the format text, then keeps its own trailing "\n" before the
+    // (also NUL-terminated) list of touched paths. A merge commit has nothing to list and no
+    // trailing "\n" at all — `lineBreak === -1` then correctly yields zero paths for it.
+    const lineBreak = chunk.indexOf("\n", emailEnd);
+    const pathsPart = lineBreak === -1 ? "" : chunk.slice(lineBreak + 1);
+    for (const path of pathsPart.split("\0")) {
       if (!path || !wanted.has(path)) continue;
       let entry = counts.get(path);
       if (!entry) {

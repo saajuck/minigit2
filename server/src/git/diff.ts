@@ -22,11 +22,11 @@ async function getCommitBody(repoPath: string, hash: string): Promise<string> {
 export async function getCommitChangedPaths(repoPath: string, hash: string): Promise<string[]> {
   const parentHash = await getFirstParent(repoPath, hash);
   const diffBase = parentHash ?? EMPTY_TREE_HASH;
-  const { stdout } = await runGit(repoPath, ["diff", "--no-color", "--name-only", diffBase, hash]);
-  return stdout
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
+  // `-z`: without it, git C-quotes any path with non-ASCII bytes/quotes/backslashes (e.g.
+  // `café.txt` -> `"caf\303\251.txt"`), which would silently break the `wanted`-set lookup in
+  // hotspot.ts against paths sourced from the (also `-z`'d) name-status/log walks below.
+  const { stdout } = await runGit(repoPath, ["diff", "--no-color", "-z", "--name-only", diffBase, hash]);
+  return stdout.split("\0").filter((path) => path !== "");
 }
 
 /** Fetches a single file's patch on demand — the file list endpoint stays cheap even for large diffs. */
@@ -58,8 +58,11 @@ async function getFirstParent(repoPath: string, hash: string): Promise<string | 
 }
 
 async function diffNameStatus(repoPath: string, base: string, head: string): Promise<FileDiffSummary[]> {
+  // Both calls need `-z`: without it, `--name-status` C-quotes non-ASCII/quote/backslash paths
+  // (e.g. `café.txt` -> `"caf\303\251.txt"`) while `--numstat` here doesn't, so a join keyed by
+  // path would silently miss for exactly those files.
   const [{ stdout: nameStatusOut }, { stdout: numstatOut }] = await Promise.all([
-    runGit(repoPath, ["diff", "--no-color", "--name-status", base, head]),
+    runGit(repoPath, ["diff", "--no-color", "-z", "--name-status", base, head]),
     runGit(repoPath, ["diff", "--no-color", "-z", "--numstat", base, head]),
   ]);
   const files = parseNameStatus(nameStatusOut);
@@ -81,24 +84,32 @@ export interface NameStatusEntry {
   status: FileStatus;
 }
 
+/** Parses `git diff -z --name-status` output. `-z` NUL-delimits records (status code, then
+ * either one inline path or, for a rename, old path then new path as two separate fields) and,
+ * critically, leaves paths unquoted — without it git C-quotes non-ASCII/quote/backslash paths. */
 export function parseNameStatus(output: string): NameStatusEntry[] {
-  return output
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const parts = line.split("\t");
-      const code = parts[0] ?? "";
-      if (code.startsWith("R")) {
-        const oldPath = parts[1];
-        const newPath = parts[2] ?? oldPath ?? "";
-        return { path: newPath, oldPath, status: "renamed" as FileStatus };
+  const tokens = output.split("\0").filter((t) => t !== "");
+  const entries: NameStatusEntry[] = [];
+  let i = 0;
+  while (i < tokens.length) {
+    const code = tokens[i]!;
+    if (code.startsWith("R")) {
+      const oldPath = tokens[i + 1];
+      const newPath = tokens[i + 2];
+      if (oldPath !== undefined && newPath !== undefined) {
+        entries.push({ path: newPath, oldPath, status: "renamed" as FileStatus });
       }
-      const path = parts[1] ?? "";
-      if (code.startsWith("A")) return { path, status: "added" as FileStatus };
-      if (code.startsWith("D")) return { path, status: "deleted" as FileStatus };
-      return { path, status: "modified" as FileStatus };
-    });
+      i += 3;
+      continue;
+    }
+    const path = tokens[i + 1];
+    if (path !== undefined) {
+      const status: FileStatus = code.startsWith("A") ? "added" : code.startsWith("D") ? "deleted" : "modified";
+      entries.push({ path, status });
+    }
+    i += 2;
+  }
+  return entries;
 }
 
 export interface NumstatEntry {

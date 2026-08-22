@@ -7,7 +7,7 @@ const EMPTY_TREE_HASH = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
 /** Uncommitted changes: working tree + index, against HEAD (or the empty tree on an unborn branch). */
 export async function getLocalDiffFileList(repoPath: string): Promise<FileDiffSummary[]> {
   const base = await resolveDiffBase(repoPath);
-  const { stdout } = await runGit(repoPath, ["diff", "--no-color", "--name-status", base]);
+  const { stdout } = await runGit(repoPath, ["diff", "--no-color", "-z", "--name-status", base]);
   const tracked = parseNameStatus(stdout).map((f) => ({ ...f, additions: 0, deletions: 0 }));
   const untracked = await getUntrackedFiles(repoPath);
   return [...tracked, ...untracked];
