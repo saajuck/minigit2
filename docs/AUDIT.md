@@ -2,8 +2,8 @@
 
 ## Contexte
 
-Toutes les phases décrites dans [`docs/PLAN.md`](PLAN.md) sont livrées
-(v0.5.0, master). Ce document est un audit à froid du code existant à ce
+Toutes les phases du plan de build initial (document depuis retiré du repo)
+sont livrées (v0.5.0, master). Ce document est un audit à froid du code existant à ce
 stade, produit pour être **repris et exécuté par une autre session/modèle**
 — chaque item est autonome (fichier:ligne + action concrète), pas besoin de
 relire l'historique qui a produit cet audit. Trois passes d'exploration
