@@ -5,6 +5,7 @@ import { ExternalLinkIcon } from "../design-system/icons";
 import type { Theme } from "../design-system/palette";
 import { linkifyMessage } from "../git/linkifyMessage";
 import { deriveCommitUrl } from "../git/remoteUrl";
+import { openExternalUrl } from "../openExternalUrl";
 import CollapsibleSection from "./CollapsibleSection";
 import CopyableText from "./CopyableText";
 import DiffStats from "./DiffStats";
@@ -146,6 +147,10 @@ export default function DiffPanel({
               target="_blank"
               rel="noreferrer"
               title="Open this commit on the remote host"
+              onClick={(e) => {
+                e.preventDefault();
+                void openExternalUrl(commitUrl);
+              }}
             >
               <ExternalLinkIcon />
               Open

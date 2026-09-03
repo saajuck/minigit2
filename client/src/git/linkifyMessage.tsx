@@ -1,5 +1,13 @@
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
+import { openExternalUrl } from "../openExternalUrl";
 import { deriveMergeRequestUrl } from "./remoteUrl";
+
+function handleExternalClick(url: string) {
+  return (e: MouseEvent) => {
+    e.preventDefault();
+    void openExternalUrl(url);
+  };
+}
 
 // Group 1: a bare URL, verbatim from the message. Group 2: a GitLab merge-request reference's
 // id — GitLab's own convention (auto-appended as "See merge request <namespace>!<id>") puts the
@@ -23,7 +31,7 @@ export function linkifyMessage(text: string, remoteUrl: string | null): ReactNod
     const [full, url, mrId] = match;
     if (url) {
       nodes.push(
-        <a key={key++} href={url} target="_blank" rel="noreferrer">
+        <a key={key++} href={url} target="_blank" rel="noreferrer" onClick={handleExternalClick(url)}>
           {url}
         </a>,
       );
@@ -31,7 +39,7 @@ export function linkifyMessage(text: string, remoteUrl: string | null): ReactNod
       const mrUrl = remoteUrl ? deriveMergeRequestUrl(remoteUrl, mrId) : null;
       nodes.push(
         mrUrl ? (
-          <a key={key++} href={mrUrl} target="_blank" rel="noreferrer">
+          <a key={key++} href={mrUrl} target="_blank" rel="noreferrer" onClick={handleExternalClick(mrUrl)}>
             {full}
           </a>
         ) : (
