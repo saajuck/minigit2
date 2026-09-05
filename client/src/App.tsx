@@ -433,6 +433,24 @@ export default function App() {
     [matchingNodes, parsedQuery],
   );
 
+  // EXPERIMENTAL — hard-filters the graph pane to only search matches, instead of the normal
+  // "dim everything else in place" behavior. Same renumbering trick as focusedNodes/focusedEdges
+  // above (contiguous rows for GraphView's scroll/virtualization math). Known trade-off worth
+  // seeing in practice before committing to it: an edge only survives if BOTH its endpoints are
+  // matches, so anything but a very targeted query (matches that are direct parent/child of each
+  // other) tends to leave a scatter of disconnected dots with no lines between them, since the
+  // real ancestry path between two matches usually runs through non-matching commits that just
+  // got removed.
+  const searchFilteredNodes = useMemo(() => {
+    if (!matchHashes) return focusedNodes;
+    return focusedNodes.filter((n) => matchHashes.has(n.hash)).map((n, row) => ({ ...n, row }));
+  }, [focusedNodes, matchHashes]);
+
+  const searchFilteredEdges = useMemo(() => {
+    if (!matchHashes) return focusedEdges;
+    return focusedEdges.filter((e) => matchHashes.has(e.from) && matchHashes.has(e.to));
+  }, [focusedEdges, matchHashes]);
+
   function toggleFocusRef(hash: string, name: string) {
     setFocusedRefs((prev) =>
       prev.some((r) => r.name === name) ? prev.filter((r) => r.name !== name) : [...prev, { hash, name }],
@@ -649,8 +667,8 @@ export default function App() {
                   {graph ? (
                     <GraphView
                       key={activeRepoId}
-                      nodes={focusedNodes}
-                      edges={focusedEdges}
+                      nodes={searchFilteredNodes}
+                      edges={searchFilteredEdges}
                       selectedHash={selectedHash}
                       compareHash={compareHash}
                       matchHashes={matchHashes}
