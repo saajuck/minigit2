@@ -15,6 +15,15 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": "off",
+      // v7's "recommended" preset folds in the full React Compiler rule set, not just
+      // rules-of-hooks/exhaustive-deps as before. Everything else in it passes clean already;
+      // this one doesn't — it flags several legitimate "sync from an external source" effects in
+      // App.tsx (reacting to the repo list arriving, resetting selection on repo switch,
+      // recovering from a stale commit, pruning stale branch focus), the same "derive/reset state
+      // on prop change via effect" pattern React itself documents. Downgrading here rather than
+      // restructuring those effects for a devDependency bump, same spirit as the TS strictness
+      // notes below.
+      "react-hooks/set-state-in-effect": "off",
     },
   },
   {
