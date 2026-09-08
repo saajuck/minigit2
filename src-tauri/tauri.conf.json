@@ -1,6 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "minigit2",
+  "mainBinaryName": "minigit2",
   "version": "../package.json",
   "identifier": "com.minigit2.desktop",
   "build": {
@@ -16,16 +17,28 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "category": "DeveloperTool",
+    "shortDescription": "A fast, local Git graph client for browsing history",
+    "longDescription": "minigit2 shows a repository's commit graph and, for any commit you click, its diff — read-only, no staging, commit or rebase. Runs entirely on 127.0.0.1.",
+    "homepage": "https://github.com/saajuck/minigit2",
     "externalBin": ["binaries/minigit2-server"],
     "resources": {
       "../client/dist": "client-dist"
     },
     "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
       "icons/128x128@2x.png",
+      "icons/32x32.png",
+      "icons/64x64.png",
+      "icons/128x128.png",
+      "icons/icon.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico"
+      }
+    }
   }
 }
