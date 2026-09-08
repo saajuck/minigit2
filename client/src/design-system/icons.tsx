@@ -28,7 +28,7 @@ export function GitBranchIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-export function MoonIcon(props: SVGProps<SVGSVGElement>) {
+export function SunIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon width="15" height="15" {...props}>
       <circle cx="12" cy="12" r="4" />
@@ -37,7 +37,7 @@ export function MoonIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-export function SunIcon(props: SVGProps<SVGSVGElement>) {
+export function MoonIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon width="15" height="15" {...props}>
       <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" />
@@ -170,6 +170,33 @@ export function FolderTreeIcon(props: SVGProps<SVGSVGElement>) {
       <circle cx="14" cy="7" r="1.6" />
       <circle cx="14" cy="13" r="1.6" />
       <circle cx="14" cy="19" r="1.6" />
+    </Icon>
+  );
+}
+
+export function SettingsIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon width="15" height="15" {...props}>
+      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+      <circle cx="12" cy="12" r="3" />
+    </Icon>
+  );
+}
+
+export function TagIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon width="13" height="13" {...props}>
+      <path d="M12.59 2.59A2 2 0 0 0 11.17 2H4a2 2 0 0 0-2 2v7.17a2 2 0 0 0 .59 1.42l8.7 8.7a2 2 0 0 0 2.83 0l6.58-6.59a2 2 0 0 0 0-2.82z" />
+      <circle cx="7.5" cy="7.5" r="0.9" fill="currentColor" />
+    </Icon>
+  );
+}
+
+export function XIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon width="12" height="12" {...props}>
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
     </Icon>
   );
 }

@@ -73,9 +73,9 @@ replacement for `git` itself.
   the repo's default branch marked (resolved from `origin/HEAD`).
 - **Status**: bar showing current branch / detached HEAD / working tree
   dirty state, ahead/behind counts vs the tracked upstream, manual refresh
-  button plus automatic refresh every 30s (new commits found in the
-  background surface as a dismissible banner instead of silently
-  replacing the list).
+  button plus automatic refresh on a configurable interval (30s by default,
+  changed in Settings; new commits found in the background surface as a
+  dismissible banner instead of silently replacing the list).
 - **Compare**: Ctrl/Cmd-click a second commit to diff it against the first
   selected one (not just parent vs child).
 - **Keyboard**: Up/Down to move the graph selection, Enter to check it out.
@@ -84,9 +84,11 @@ replacement for `git` itself.
   highlight in place (no re-fetch, stays fast on large histories), Enter/↑↓
   jump the selection between matches.
 - **Design**: reskinned on the Industry design system (blueprint/wireframe
-  aesthetic, qualitative lane palette), with a light/dark theme toggle
-  persisted per browser. Sidebar repo cards show each repo's own branch and
-  dirty state at a glance.
+  aesthetic, qualitative lane palette). Sidebar repo cards show each repo's
+  own branch and dirty state at a glance.
+- **Settings**: a gear in the header opens a two-tab dialog — theme
+  (light/dark) and the auto-refresh interval — both persisted per browser.
+  The header also shows the running app version.
 - **Local changes, stash, reflog**: view the working tree's uncommitted diff
   (staged, unstaged, and untracked files) in the same diff panel used for
   commits; read-only lists of stashed changes and the reflog, each with

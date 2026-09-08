@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- minigit2's app icon, and the source of truth for every generated raster icon in this
+       directory: the same Lucide git-branch glyph the app's own header uses
+       (client/src/design-system/icons.tsx), on the Industry accent ground (#5980A6, the light
+       theme's color-accent) in the neutral-100 foreground (#F5F5F8). The stroke is heavier than
+       the in-app 1.5 so the mark still reads at 16x16 in a Windows file list or a Linux panel.
+
+       To regenerate the rasters, rasterize this file to a 1024x1024 PNG first, then hand that
+       PNG (not the SVG) to the Tauri CLI:
+           rsvg-convert -w 1024 -h 1024 src-tauri/icons/icon.svg -o /tmp/icon-1024.png
+           npx tauri icon /tmp/icon-1024.png
+           rm -rf src-tauri/icons/android src-tauri/icons/ios   # no mobile targets here
+       `npx tauri icon icon.svg` also works, but it rasterizes each size straight from the
+       vector, which leaves the 16/24/32px strokes noticeably thinner and fainter than
+       downsampling a 1024px render does. -->
+  <rect width="1024" height="1024" fill="#5980A6"/>
+  <g transform="translate(512 512) scale(30.72) translate(-12 -12)"
+     fill="none" stroke="#F5F5F8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="6" y1="3" x2="6" y2="15"/>
+    <circle cx="18" cy="6" r="3"/>
+    <circle cx="6" cy="18" r="3"/>
+    <path d="M18 9a9 9 0 0 1-9 9"/>
+  </g>
+</svg>

@@ -1,10 +1,10 @@
 [package]
 name = "app"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "A fast, local Git graph client for browsing history"
+authors = ["minigit2 contributors"]
 license = ""
-repository = ""
+repository = "https://github.com/saajuck/minigit2"
 edition = "2021"
 rust-version = "1.77.2"
 

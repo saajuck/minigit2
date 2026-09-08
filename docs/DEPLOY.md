@@ -96,6 +96,36 @@ in `src-tauri/target/release/bundle/<format>/`, named after the app's version (e
 `minigit2_0.1.0_amd64.AppImage`, `minigit2_0.1.0_x64-setup.exe`) — see "Cutting a release" below
 for where that version comes from.
 
+## App icon
+
+`src-tauri/icons/icon.svg` is the source of truth: the app's own git-branch glyph on the
+Industry accent ground. Every other file in `src-tauri/icons/` is generated from it, and both
+platforms take their icon from that generated set — Windows compiles `icon.ico` into the
+executable (and now uses it for the NSIS installer too, via `bundle.windows.nsis.installerIcon`;
+without that it falls back to NSIS's own default icon), while the AppImage/deb bundler copies
+the PNGs into `usr/share/icons/hicolor/<size>/apps/<binary>.png` and points the generated
+`.desktop` entry at them.
+
+To change the icon, edit the SVG and regenerate:
+
+```bash
+rsvg-convert -w 1024 -h 1024 src-tauri/icons/icon.svg -o /tmp/icon-1024.png
+npx tauri icon /tmp/icon-1024.png
+rm -rf src-tauri/icons/android src-tauri/icons/ios   # no mobile targets in this project
+```
+
+`npx tauri icon` accepts the SVG directly, but it rasterizes each size straight from the vector,
+which leaves the 16/24/32px strokes visibly thinner than downsampling a 1024px render does —
+hence the two steps.
+
+Two ordering details in `tauri.conf.json`'s `bundle.icon` that are easy to undo by accident:
+the first `.png` in the list is the one embedded as the runtime **window** icon on Linux (so
+the 256px `128x128@2x.png` leads — a 32px window icon looks soft in a dock or alt-tab), and the
+AppImage's `.DirIcon` is the largest square icon in the list (`icon.png`, 512px). The desktop
+entry's `Icon=`/`Exec=`/`StartupWMClass=` all follow the **binary** name, which is why
+`mainBinaryName` is set to `minigit2`: without it the binary is Cargo's package name, `app`, and
+the entry ends up pointing at an icon called `app`.
+
 ## Cutting a release
 
 The version lives in one place: the root `package.json`'s `version` field.

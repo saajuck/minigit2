@@ -14,6 +14,7 @@ import GraphView, { DEFAULT_LANE_WIDTH } from "./components/GraphView";
 import ReflogDialog from "./components/ReflogDialog";
 import RepoSwitcher from "./components/RepoSwitcher";
 import ResizableDivider from "./components/ResizableDivider";
+import SettingsDialog from "./components/SettingsDialog";
 import StashDialog from "./components/StashDialog";
 import StatusChips from "./components/StatusChips";
 import {
@@ -22,13 +23,15 @@ import {
   GitBranchIcon,
   HistoryIcon,
   ListBranchesIcon,
-  MoonIcon,
   PlusIcon,
   RefreshIcon,
-  SunIcon,
+  SettingsIcon,
+  TagIcon,
 } from "./design-system/icons";
 import { ToastHost, showToast } from "./design-system/toast";
 import { useTheme } from "./design-system/useTheme";
+import { formatAutoRefreshInterval, useAutoRefreshInterval } from "./settings/autoRefresh";
+import { APP_VERSION } from "./version";
 
 const ACTIVE_REPO_KEY = "minigit2:activeRepoId";
 const DIFF_WIDTH_KEY = "minigit2:diffPaneWidth";
@@ -38,7 +41,6 @@ const DEFAULT_DIFF_WIDTH = 420;
 const LANE_WIDTH_KEY = "minigit2:graphLaneWidth";
 const MIN_LANE_WIDTH = 40;
 const MAX_LANE_WIDTH = 400;
-const AUTO_REFRESH_INTERVAL_MS = 30_000;
 
 // A commit's diff/compare content can never change once the hash exists — safe to cache
 // indefinitely (the one case where the underlying commit truly disappears, a rebase/amend
@@ -46,12 +48,14 @@ const AUTO_REFRESH_INTERVAL_MS = 30_000;
 const IMMUTABLE_STALE_TIME = Infinity;
 
 export default function App() {
-  const [theme, toggleTheme] = useTheme();
+  const [theme, setTheme] = useTheme();
+  const [autoRefreshMs, setAutoRefreshMs] = useAutoRefreshInterval();
   const queryClient = useQueryClient();
   const [activeRepoId, setActiveRepoId] = useState<string | null>(() =>
     localStorage.getItem(ACTIVE_REPO_KEY),
   );
   const [addRepoOpen, setAddRepoOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedHash, setSelectedHash] = useState<string | null>(null);
   const [compareHash, setCompareHash] = useState<string | null>(null);
   const [pendingCheckoutRef, setPendingCheckoutRef] = useState<string | null>(null);
@@ -155,7 +159,7 @@ export default function App() {
   const status = statusQuery.data ?? null;
 
   // Refetches the graph and folds in the "how many commits are new" banner count — shared by
-  // the 30s poll and the SSE watch below, the two paths that refresh in the background without
+  // the interval poll and the SSE watch below, the two paths that refresh in the background without
   // the user having explicitly asked (a manual Refresh click resets the banner outright instead,
   // see its own handler further down).
   //
@@ -261,11 +265,11 @@ export default function App() {
       await refetchGraphWithNewCommitsCount(activeRepoId);
       queryClient.invalidateQueries({ queryKey: ["status", activeRepoId] });
       if (showLocalDiffRef.current) queryClient.invalidateQueries({ queryKey: ["localDiff", activeRepoId] });
-    }, AUTO_REFRESH_INTERVAL_MS);
+    }, autoRefreshMs);
     return () => clearInterval(interval);
-  }, [activeRepoId, refetchGraphWithNewCommitsCount, queryClient]);
+  }, [activeRepoId, autoRefreshMs, refetchGraphWithNewCommitsCount, queryClient]);
 
-  // Complements the 30s poll above with a near-instant local path: the server watches this
+  // Complements the interval poll above with a near-instant local path: the server watches this
   // repo's .git refs (see routes/watch.ts) and pushes a "changed" event the moment something
   // moves on disk — a commit made in another terminal, a checkout, a `git pull` run outside the
   // app — without waiting for the next poll tick. Doesn't replace the poll's own `fetchRemote`
@@ -501,9 +505,18 @@ export default function App() {
           <GitBranchIcon />
           minigit2
         </span>
-        <span className="tag tag-neutral">local · read-only</span>
-        <button type="button" className="btn btn-ghost btn-icon" title="Toggle theme" onClick={toggleTheme}>
-          {theme === "dark" ? <MoonIcon /> : <SunIcon />}
+        <span className="nav-version" title={`minigit2 version ${APP_VERSION}`}>
+          <TagIcon />
+          v{APP_VERSION}
+        </span>
+        <button
+          type="button"
+          className="btn btn-ghost btn-icon"
+          title="Settings"
+          aria-label="Settings"
+          onClick={() => setSettingsOpen(true)}
+        >
+          <SettingsIcon />
         </button>
       </div>
 
@@ -586,7 +599,7 @@ export default function App() {
                       setNewCommitsCount(0);
                     }}
                     disabled={graphQuery.isFetching}
-                    title="Fetch from remotes and reload the graph and status now (also auto-refreshes every 30s)"
+                    title={`Fetch from remotes and reload the graph and status now (also auto-refreshes every ${formatAutoRefreshInterval(autoRefreshMs)})`}
                   >
                     <RefreshIcon />
                     {graphQuery.isFetching ? "Refreshing…" : "Refresh"}
@@ -692,6 +705,15 @@ export default function App() {
       </div>
 
       {addRepoOpen && <AddRepoDialog onAdd={handleAddRepo} onClose={() => setAddRepoOpen(false)} />}
+      {settingsOpen && (
+        <SettingsDialog
+          theme={theme}
+          autoRefreshMs={autoRefreshMs}
+          onThemeChange={setTheme}
+          onAutoRefreshMsChange={setAutoRefreshMs}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
       {stashOpen && activeRepoId && (
         <StashDialog repoId={activeRepoId} theme={theme} onClose={() => setStashOpen(false)} />
       )}

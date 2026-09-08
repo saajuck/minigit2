@@ -300,10 +300,17 @@
   gap: 6px;
 }
 
+.commit-search-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
 .commit-search .input {
   width: 260px;
   min-height: 28px;
-  padding: 4px 8px;
+  /* Right padding leaves room for the clear button sitting inside the field. */
+  padding: 4px 26px 4px 8px;
   font-size: 12px;
 }
 
@@ -315,6 +322,18 @@
 .commit-search .btn-icon {
   width: 26px;
   height: 26px;
+}
+
+.commit-search .commit-search-clear {
+  position: absolute;
+  right: 3px;
+  width: 18px;
+  height: 18px;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+}
+
+.commit-search .commit-search-clear:hover {
+  color: var(--color-text);
 }
 
 .graph-view-wrapper {
