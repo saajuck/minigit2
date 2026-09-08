@@ -62,6 +62,12 @@
   --shadow-md: 0 3px 10px color-mix(in srgb, #2b2b2d 16%, transparent);
   --shadow-lg: 0 12px 32px color-mix(in srgb, #2b2b2d 22%, transparent);
 
+  /* Native widgets the browser paints itself — the <select> dropdown list, scrollbars, form
+     control chrome — follow color-scheme, not our custom properties. Without it they render
+     light in both themes, which made the settings dropdown's options near-white text on the
+     UA's white popup background. */
+  color-scheme: light;
+
   /* App-specific additions, scoped by theme rather than hardcoded per element. */
   --color-select-bg: #eaf1f7;
   --color-dirty-bg: #f5eaec;
@@ -69,6 +75,7 @@
 }
 
 [data-theme="dark"] {
+  color-scheme: dark;
   --color-bg: var(--color-neutral-900);
   --color-surface: var(--color-neutral-800);
   --color-text: var(--color-neutral-100);
@@ -157,6 +164,9 @@ p { margin: 0 0 var(--space-3); }
 }
 .input:hover { border-color: color-mix(in srgb, var(--color-text) 45%, transparent); }
 .input:focus-visible { border-color: var(--color-accent); outline-offset: 0; }
+/* Belt and braces next to color-scheme above: where the platform lets CSS reach into the
+   dropdown list at all, its rows match the closed field rather than the UA default. */
+select.input option { background-color: var(--color-surface); color: var(--color-text); }
 
 /* — tags — */
 .tag {
