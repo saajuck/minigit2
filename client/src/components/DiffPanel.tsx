@@ -173,11 +173,16 @@ export default function DiffPanel({
         <p className="muted">No file changes.</p>
       ) : (
         <>
-          <CollapsibleSection key={diff.hash} title="Hotspot" defaultOpen>
+          {/* Distinct key prefixes, not a bare `diff.hash` on both: these two are siblings, and
+              giving them the *same* key made React keep the previous commit's Hotspot section
+              mounted when the commit changed mid-render — they stacked up, several deep, pushing
+              the diff itself off screen (see the e2e guard in smoke.spec.ts). The keys are here
+              to reset each section's collapsed state per commit, which distinct ones still do. */}
+          <CollapsibleSection key={`stats:${diff.hash}`} title="Hotspot" defaultOpen>
             <DiffStats files={diff.files} theme={theme} />
           </CollapsibleSection>
           <FileChangeList
-            key={diff.hash}
+            key={`files:${diff.hash}`}
             files={diff.files}
             theme={theme}
             fetchPatch={(file) => ({
