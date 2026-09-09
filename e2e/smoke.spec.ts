@@ -51,3 +51,34 @@ test("add a repo, view a commit's diff, and check out a branch", async ({ page }
     rmSync(repoDir, { recursive: true, force: true });
   }
 });
+
+/** Regression guard for the diff panel stacking stale "Hotspot" sections: the section and the
+ * file list below it are siblings keyed per commit, and when both carried the *same* key,
+ * switching commits faster than a render settles left the previous commit's section mounted
+ * above the new one — up to four stacked blocks pushing the actual diff off screen. Clicking
+ * with no wait in between is what surfaced it; a paced click never did. */
+test("switching commits quickly does not stack Hotspot sections", async ({ page }) => {
+  const repoDir = makeTestRepo();
+  try {
+    await page.goto("/");
+
+    await page.getByRole("button", { name: "Add repository" }).click();
+    await page.getByPlaceholder("/home/alice/code/my-project").fill(repoDir);
+    await page.getByRole("button", { name: "Add repository" }).last().click();
+
+    const first = page.getByText("initial commit", { exact: true });
+    await expect(first).toBeVisible({ timeout: 10_000 });
+    const second = page.getByText("add feature file", { exact: true });
+
+    for (let i = 0; i < 8; i++) {
+      await (i % 2 === 0 ? second : first).click({ delay: 0 });
+    }
+    // Let every in-flight diff request settle, so a late arrival can't add a section after the
+    // assertion rather than before it.
+    await page.waitForTimeout(1500);
+
+    await expect(page.getByRole("button", { name: /Hotspot/i })).toHaveCount(1);
+  } finally {
+    rmSync(repoDir, { recursive: true, force: true });
+  }
+});
