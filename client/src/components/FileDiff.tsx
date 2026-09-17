@@ -11,6 +11,11 @@ import { ChevronRightIcon } from "../design-system/icons";
 // arbitrarily tall.
 const BLAME_ROW_HEIGHT = 20;
 
+/** Width of the per-row churn bar, in block characters. Shorter than the standalone stats table
+ * this replaced (16): here the bar shares a row with the path, so it is sized to stay a glanceable
+ * sparkline rather than a chart. */
+const MAX_BAR_CHARS = 8;
+
 export interface Query<T> {
   queryKey: unknown[];
   queryFn: (signal: AbortSignal) => Promise<T>;
@@ -36,6 +41,10 @@ interface Props {
    * just a lookup into that result. undefined while the batch is still loading or this file
    * wasn't part of it (no badge shown either way). */
   hotspot?: FileHotspot;
+  /** Largest `additions + deletions` across every file in this diff — the scale the churn bar is
+   * drawn against, so bar lengths are comparable between rows instead of each file filling the
+   * width. Computed once by the parent, which is the only place that sees all the files. */
+  maxChurn?: number;
   onSelectCommit?: (hash: string) => void;
 }
 
@@ -54,6 +63,7 @@ export default function FileDiff({
   fetchPatch,
   fetchBlame,
   hotspot,
+  maxChurn,
   onSelectCommit,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -76,6 +86,16 @@ export default function FileDiff({
   const pal = getPalette(theme);
   const meta = STATUS_META[file.status];
   const badgeColor = pal[meta.laneIndex]!;
+
+  // Same proportional split the standalone stats table used: bar length relative to the busiest
+  // file in the diff, then divided between added and removed in proportion. A file that changed
+  // at all always gets at least one block, so a one-line change next to a 2000-line one is still
+  // visible rather than rounding away to nothing.
+  const churn = file.additions + file.deletions;
+  const scale = Math.max(maxChurn ?? churn, 1);
+  const barLen = churn === 0 ? 0 : Math.max(1, Math.round((churn / scale) * MAX_BAR_CHARS));
+  const addChars = churn === 0 ? 0 : Math.round((barLen * file.additions) / churn);
+  const delChars = barLen - addChars;
 
   function toggle() {
     setOpen((o) => !o);
@@ -108,6 +128,22 @@ export default function FileDiff({
               {hotspot.commits} · {hotspot.authors}
             </span>
           )}
+          <span className="file-diff-counts" aria-hidden="true">
+            <span className="file-diff-add">+{file.additions}</span>{" "}
+            <span className="file-diff-del">-{file.deletions}</span>
+          </span>
+          {/* The bar carries the accessible text, not the counts beside it: the counts are the
+              column that drops out first on a narrow pane, so hanging the numbers off them would
+              lose them exactly when they are no longer on screen. */}
+          <span
+            className="file-diff-bar"
+            role="img"
+            aria-label={`${file.additions} added, ${file.deletions} removed`}
+            title={`+${file.additions} / -${file.deletions}`}
+          >
+            <span className="file-diff-add">{"█".repeat(addChars)}</span>
+            <span className="file-diff-del">{"█".repeat(delChars)}</span>
+          </span>
           <span className="file-diff-chevron" style={{ transform: `rotate(${open ? 90 : 0}deg)` }}>
             <ChevronRightIcon />
           </span>
