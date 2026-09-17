@@ -30,12 +30,16 @@ export default function FileChangeList({ files, theme, fetchPatch, fetchBlame, h
     localStorage.getItem(VIEW_MODE_KEY) === "tree" ? "tree" : "list",
   );
   // Collapsing hides the file list below the toolbar entirely — useful to reclaim space while
-  // reading the commit message/hotspot above it, without losing the list itself (still one click
+  // reading the commit message above it, without losing the list itself (still one click
   // away). Resets to expanded on each new commit/compare/local-diff, since DiffPanel remounts
   // this component per selection (see its `key={diff.hash}` etc.) — a momentary "get this out of
   // my way for now" action tied to the current view, not a sticky preference like the view-mode
   // toggle below (which does persist, via localStorage).
   const [collapsed, setCollapsed] = useState(false);
+
+  // The scale every row's churn bar is drawn against (see FileDiff's `maxChurn`) — computed here
+  // because this is the only component that sees the whole file list at once.
+  const maxChurn = files.reduce((max, f) => Math.max(max, f.additions + f.deletions), 0);
 
   useEffect(() => {
     localStorage.setItem(VIEW_MODE_KEY, viewMode);
@@ -50,6 +54,7 @@ export default function FileChangeList({ files, theme, fetchPatch, fetchBlame, h
         fetchPatch={fetchPatch(file)}
         fetchBlame={fetchBlame?.(file)}
         hotspot={hotspots?.[file.path]}
+        maxChurn={maxChurn}
         onSelectCommit={onSelectCommit}
       />
     );

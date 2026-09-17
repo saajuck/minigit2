@@ -52,12 +52,13 @@ test("add a repo, view a commit's diff, and check out a branch", async ({ page }
   }
 });
 
-/** Regression guard for the diff panel stacking stale "Hotspot" sections: the section and the
- * file list below it are siblings keyed per commit, and when both carried the *same* key,
- * switching commits faster than a render settles left the previous commit's section mounted
- * above the new one — up to four stacked blocks pushing the actual diff off screen. Clicking
- * with no wait in between is what surfaced it; a paced click never did. */
-test("switching commits quickly does not stack Hotspot sections", async ({ page }) => {
+/** Regression guard for the diff panel stacking stale blocks: its per-commit sections are keyed
+ * by commit hash, and when two siblings carried the *same* key, switching commits faster than a
+ * render settles left the previous commit's block mounted above the new one — up to four stacked,
+ * pushing the actual diff off screen. Clicking with no wait in between is what surfaced it; a
+ * paced click never did. Asserted on the file list, the keyed section that outlived the churn
+ * table it used to sit under. */
+test("switching commits quickly does not stack diff sections", async ({ page }) => {
   const repoDir = makeTestRepo();
   try {
     await page.goto("/");
@@ -77,7 +78,7 @@ test("switching commits quickly does not stack Hotspot sections", async ({ page 
     // assertion rather than before it.
     await page.waitForTimeout(1500);
 
-    await expect(page.getByRole("button", { name: /Hotspot/i })).toHaveCount(1);
+    await expect(page.getByRole("button", { name: /file(s)? changed/i })).toHaveCount(1);
   } finally {
     rmSync(repoDir, { recursive: true, force: true });
   }

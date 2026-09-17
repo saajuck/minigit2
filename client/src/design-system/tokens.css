@@ -68,6 +68,13 @@
      UA's white popup background. */
   color-scheme: light;
 
+  /* Diff add/delete, deliberately outside the qualitative lane palette: those colors are tuned
+     to sit quietly next to each other in the graph, which left green and red only ~40 ΔE76
+     apart — too close to read at a glance in a churn bar where the two touch. These are ~99 ΔE76
+     apart and each clears 4.5:1 against both --color-bg and --color-surface. */
+  --color-diff-add: #116329;
+  --color-diff-del: #c0202c;
+
   /* App-specific additions, scoped by theme rather than hardcoded per element. */
   --color-select-bg: #eaf1f7;
   --color-dirty-bg: #f5eaec;
@@ -84,6 +91,8 @@
   --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.5);
   --shadow-md: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 6px 16px rgba(0, 0, 0, 0.55);
   --shadow-lg: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 16px 40px rgba(0, 0, 0, 0.6);
+  --color-diff-add: #56d364;
+  --color-diff-del: #ff9492;
   --color-select-bg: rgba(148, 188, 227, 0.15);
   --color-dirty-bg: rgba(161, 95, 106, 0.22);
   --color-dirty-text: #f0c7cd;

@@ -720,59 +720,11 @@
   padding-bottom: 10px;
 }
 
-.diffstats {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 8px 10px;
-  border: 1px solid var(--color-divider);
-  font-family: var(--font-mono);
-  font-size: 11px;
-}
-
-.diffstats-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.diffstats-label {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  color: color-mix(in srgb, var(--color-text) 75%, transparent);
-}
-
-.diffstats-label-prefix {
-  /* No flex-grow: sized to its own content and left snug against the suffix when everything
-   * fits, only shrinking (and ellipsizing) once the pair together overflow the label column —
-   * flex-grow:1 here would stretch this span to fill all free space even when its text is
-   * short, opening a gap before the suffix instead of sitting right next to it. */
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.diffstats-label-suffix {
-  flex: 0 0 auto;
-  white-space: nowrap;
-}
-
-.diffstats-counts {
-  flex-shrink: 0;
-  width: 88px;
-  color: color-mix(in srgb, var(--color-text) 50%, transparent);
-}
-
-.diffstats-bar {
-  flex-shrink: 0;
-  letter-spacing: -1px;
-}
-
-.diffstats-more {
-  color: color-mix(in srgb, var(--color-text) 45%, transparent);
-  padding-top: 2px;
+/* Container for the per-row churn columns' width queries above — the file rows care about the
+ * pane's width, which no media query can see. */
+.diff-files {
+  container-type: inline-size;
+  container-name: filelist;
 }
 
 .diff-files-toolbar {
@@ -952,6 +904,53 @@
   font-family: var(--font-mono);
   font-size: 10.5px;
   color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+
+/* Churn counts and bar, merged into the row that opens the file rather than living in a separate
+ * stats table above the list: the numbers belong next to the path they describe. Both columns are
+ * fixed-width so the chevron — and the bars themselves — line up down the list instead of
+ * drifting with each row's digit count. */
+.file-diff-counts {
+  flex-shrink: 0;
+  width: 76px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.file-diff-bar {
+  flex-shrink: 0;
+  width: 8ch;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: -1px;
+  white-space: nowrap;
+}
+
+/* The path is what the row is for, and the diff pane is resizable down to 240px — so on a narrow
+ * pane the churn columns give way rather than squeezing the path into an ellipsis. The bar is the
+ * one that survives longest: it is the at-a-glance signal, it costs less width than the digits,
+ * and it keeps the exact counts in its tooltip either way. A browser without container query
+ * support simply keeps both, which is the unnarrowed layout. */
+@container filelist (max-width: 470px) {
+  .file-diff-counts {
+    display: none;
+  }
+}
+
+@container filelist (max-width: 330px) {
+  .file-diff-bar {
+    display: none;
+  }
+}
+
+.file-diff-add {
+  color: var(--color-diff-add);
+}
+
+.file-diff-del {
+  color: var(--color-diff-del);
 }
 
 .file-diff-chevron {

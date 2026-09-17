@@ -8,7 +8,6 @@ import { deriveCommitUrl } from "../git/remoteUrl";
 import { openExternalUrl } from "../openExternalUrl";
 import CollapsibleSection from "./CollapsibleSection";
 import CopyableText from "./CopyableText";
-import DiffStats from "./DiffStats";
 import FileChangeList from "./FileChangeList";
 
 interface Props {
@@ -173,14 +172,10 @@ export default function DiffPanel({
         <p className="muted">No file changes.</p>
       ) : (
         <>
-          {/* Distinct key prefixes, not a bare `diff.hash` on both: these two are siblings, and
-              giving them the *same* key made React keep the previous commit's Hotspot section
-              mounted when the commit changed mid-render — they stacked up, several deep, pushing
-              the diff itself off screen (see the e2e guard in smoke.spec.ts). The keys are here
-              to reset each section's collapsed state per commit, which distinct ones still do. */}
-          <CollapsibleSection key={`stats:${diff.hash}`} title="Hotspot" defaultOpen>
-            <DiffStats files={diff.files} theme={theme} />
-          </CollapsibleSection>
+          {/* Keyed per commit so the list's own collapsed state resets with the selection. Keep
+              this key distinct from any sibling's: two siblings under one key is what previously
+              made React leave the old node mounted when the commit changed mid-render, stacking
+              stale blocks above the diff (see the e2e guard in smoke.spec.ts). */}
           <FileChangeList
             key={`files:${diff.hash}`}
             files={diff.files}

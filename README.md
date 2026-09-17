@@ -61,8 +61,11 @@ replacement for `git` itself.
   out from the rest of the history. Virtualized list: only visible rows are
   mounted, scales to large histories.
 - **Per-commit diff**: click a commit to see its changed files; each file
-  expands and loads its patch on demand. Resizable panel (drag the
-  divider).
+  expands and loads its patch on demand. Every row carries its own churn —
+  `+added -removed` and a red/green bar scaled against the busiest file in the
+  commit — so the shape of a change reads off the list itself. Resizable panel
+  (drag the divider); the churn columns step aside as it narrows, the path
+  never truncates for them.
 - **Checkout**: double-click a commit for a detached checkout, or a branch
   badge to check out that branch (checking out a remote badge creates/reuses
   a local tracking branch instead of detaching, matching `git checkout
