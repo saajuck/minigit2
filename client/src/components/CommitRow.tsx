@@ -1,4 +1,4 @@
-import type { MouseEvent } from "react";
+import { memo, type MouseEvent } from "react";
 import type { CommitNode } from "@minigit2/shared";
 import type { Theme } from "../design-system/palette";
 import CopyableText from "./CopyableText";
@@ -11,12 +11,14 @@ interface Props {
   selected: boolean;
   compared: boolean;
   dimmed: boolean;
-  onSelect: () => void;
-  onCompareClick: () => void;
+  /** Take the hash rather than closing over it in the parent: a fresh arrow function per row per
+   * render would defeat the memo below, which is the whole point of it. */
+  onSelect: (hash: string) => void;
+  onCompareClick: (hash: string) => void;
   onCheckoutRef: (ref: string) => void;
 }
 
-export default function CommitRow({
+function CommitRow({
   node,
   height,
   theme,
@@ -31,9 +33,9 @@ export default function CommitRow({
 
   function handleClick(e: MouseEvent) {
     if (e.metaKey || e.ctrlKey) {
-      onCompareClick();
+      onCompareClick(node.hash);
     } else {
-      onSelect();
+      onSelect(node.hash);
     }
   }
 
@@ -62,6 +64,12 @@ export default function CommitRow({
     </div>
   );
 }
+
+/** Scrolling re-renders the graph on every frame, but most of the rows on screen are the same
+ * ones as the frame before with identical props — re-rendering their hash/badges/avatar/date
+ * subtree each time is pure waste. Memoised on that basis; it only holds because every callback
+ * prop above is stable across renders (see onSelect's note). */
+export default memo(CommitRow);
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });

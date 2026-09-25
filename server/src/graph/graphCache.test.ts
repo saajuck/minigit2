@@ -6,7 +6,7 @@ import { getCachedGraph, setCachedGraph } from "./graphCache";
 // from the others rather than resetting shared state between them. A fresh {nodes:[],edges:[]}
 // each call is distinct by reference, which is all these tests need (toBe checks identity).
 function emptyGraph(): GraphResponse {
-  return { nodes: [], edges: [] };
+  return { nodes: [], edges: [], signature: "sig-a" };
 }
 
 describe("graphCache", () => {

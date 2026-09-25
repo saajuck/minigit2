@@ -499,13 +499,83 @@ plus que des nombres.
 
 ### Reste à traiter (non corrigé ici)
 
-- **Charge utile initiale** : 10,5 Mo de JSON (1,6 Mo gzip) pour 20 000
-  commits, ~1,1–1,7 s jusqu'à la première ligne affichée. Les URLs Gravatar
-  pèsent 1,6 Mo à elles seules (15 %) et sont dérivables du hash de l'e-mail
-  côté client. `authorEmail` (0,33 Mo) n'est utilisé que pour le filtre
-  `author:`.
+- ~~**Charge utile initiale** : les URLs Gravatar pèsent 1,6 Mo, dérivables
+  côté client~~ — **recommandation retirée, voir le second tour ci-dessous** :
+  la charge utile n'est pas un coût client.
 - **P1.1bis** (rafraîchissement incrémental) reste ouvert et reste la bonne
-  réponse de fond au coût du poll sur gros dépôt.
+  réponse de fond au coût du poll sur gros dépôt — mais le coût *client* du
+  poll est traité ci-dessous.
+
+## Audit perf front, second tour (mené en v0.10.0)
+
+Même dépôt de 20 000 commits, même instrumentation, plus les métriques CPU du
+protocole DevTools (`Performance.getMetrics` : `ScriptDuration`,
+`LayoutDuration`, `JSHeapUsedSize`) qui mesurent le temps réellement passé, par
+frame ou par période, plutôt que l'intervalle entre frames.
+
+### Correction du premier tour : la charge utile n'est pas un coût client
+
+Le premier tour signalait « 10,5 Mo de JSON, ~1,1–1,7 s jusqu'à la première
+ligne » et proposait de dériver les URLs Gravatar côté client pour alléger.
+Décomposition mesurée de cette requête :
+
+| Étape | Mesure |
+|---|---|
+| Attente serveur (`git log --all` + layout, cache froid) | **1 135 ms** |
+| Téléchargement (1 370 Ko gzip) | 181 ms |
+| `JSON.parse` des 10,5 Mo côté client | **27 ms** |
+
+Le temps est dans le **walk git côté serveur**, pas dans le client. Alléger la
+charge utile pour un objectif de perf front est donc un mauvais arbitrage : ça
+économise quelques millisecondes de parse et ajoute du calcul au client.
+Recommandation retirée. (Le coût serveur, lui, reste un sujet — hors de portée
+d'un audit front.)
+
+### Constat 3 — les lignes de commit se re-rendaient à chaque frame de scroll (corrigé)
+**Fichiers** : `client/src/components/CommitRow.tsx`, `GraphView.tsx`.
+
+`CommitRow` n'était pas mémoïsé, et de toute façon ne pouvait pas l'être : le
+parent passait `onSelect={() => onSelect(node.hash)}`, une nouvelle closure par
+ligne et par rendu. Chaque frame de scroll re-rendait donc l'intégralité des
+~30 lignes visibles — hash copiable, badges de refs, avatar, dates — alors que
+les deux tiers d'entre elles sont les mêmes qu'à la frame précédente.
+
+**Correctif** : les callbacks prennent le hash en argument (stables d'un rendu à
+l'autre), et `CommitRow` est exporté sous `memo`.
+
+| Mesure | Avant | Après |
+|---|---|---|
+| Scroll, intervalle entre frames (p50) | 21,8 ms | **16,7 ms** (verrouillé au vsync) |
+| Idem (p90) | 25,8 ms | **16,9 ms** |
+| Script par frame, sans recherche | 6,58 ms | **4,16 ms** |
+| Script par frame, requête matchant 20 000 | 8,64 ms | **4,31 ms** |
+
+Budget restant après correctif : ~5,5 ms sur les 16,7 ms d'une frame (script
+4,2 + layout 0,8 + recalc style 0,6). Pousser plus loin sur ce chemin n'a plus
+de justification mesurée.
+
+### Constat 4 — le poll de fond retransférait tout le graphe même sans changement (corrigé)
+**Fichiers** : `server/src/routes/graph.ts`, `client/src/App.tsx`.
+
+Le serveur mettait déjà le graphe en cache sur une signature des tips de refs,
+mais renvoyait quand même les 10,5 Mo à chaque poll — le client les
+retéléchargeait, les reparsait et re-rendait, toutes les 30 s, pour un résultat
+identique à ce qui était déjà affiché.
+
+**Correctif** : la réponse `/graph` porte sa `signature`, un `GET
+/graph/signature` (7 Ko, 19 ms) la renvoie seule, et le rafraîchissement de fond
+la compare avant de demander le graphe. En cas d'échec de la vérification, on
+retombe sur l'ancien comportement.
+
+| Sur 3 ticks de rafraîchissement, rien ne bouge | Avant | Après |
+|---|---|---|
+| Requêtes `/graph` | 3 (**30,8 Mo**) | **0** |
+| Requêtes `/graph/signature` | 0 | 3 (7 Ko chacune) |
+| Temps script cumulé | 37 ms | **3 ms** |
+
+Correctness vérifiée dans le navigateur : période calme → 0 requête `/graph` ;
+un `git commit` réel pendant la session → exactement 1 requête `/graph`, le
+commit apparaît, la bannière « 1 new commit loaded » fonctionne toujours.
 
 ## Non-findings notés (pour éviter qu'un futur audit les re-signale)
 

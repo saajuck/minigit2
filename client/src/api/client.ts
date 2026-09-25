@@ -94,6 +94,8 @@ export const api = {
       body: JSON.stringify({ path }),
     }),
   removeRepo: (id: string) => request<void>(`/repos/${id}`, { method: "DELETE" }),
+  getGraphSignature: (repoId: string, signal?: AbortSignal) =>
+    request<{ signature: string }>(`/repos/${repoId}/graph/signature`, { signal }),
   getGraph: (repoId: string, signal?: AbortSignal) =>
     request<GraphResponse>(`/repos/${repoId}/graph`, { signal }),
   getDiff: (repoId: string, hash: string, signal?: AbortSignal) =>

@@ -75,6 +75,11 @@ export interface GraphEdge {
 export interface GraphResponse {
   nodes: CommitNode[];
   edges: GraphEdge[];
+  /** Opaque marker of the repo's ref tips at the time this graph was built (see the server's
+   * getRefTipsSignature). Equal signatures mean no ref moved, so a client holding this graph
+   * already holds the current one — it exists so a background refresh can find that out from a
+   * few hundred bytes instead of re-downloading and re-rendering the whole history. */
+  signature: string;
 }
 
 export type FileStatus = "added" | "deleted" | "modified" | "renamed" | "untracked";
