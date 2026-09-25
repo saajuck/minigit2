@@ -1224,3 +1224,21 @@
   padding: 1px 6px;
   vertical-align: middle;
 }
+
+/* Tags dialog rows: the name carries the weight (it's what you scan for), the annotation's
+ * subject trails it in the muted tone the rest of the entry lists use for secondary text. */
+.tag-name {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.tag-subject {
+  margin-left: 8px;
+  font-size: 12px;
+}
+
+.entry-list-date {
+  flex-shrink: 0;
+  font-size: 11px;
+  white-space: nowrap;
+}

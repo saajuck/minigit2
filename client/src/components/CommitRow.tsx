@@ -27,6 +27,8 @@ export default function CommitRow({
   onCompareClick,
   onCheckoutRef,
 }: Props) {
+  const authorTitle = `${node.author} <${node.authorEmail}>`;
+
   function handleClick(e: MouseEvent) {
     if (e.metaKey || e.ctrlKey) {
       onCompareClick();
@@ -47,8 +49,13 @@ export default function CommitRow({
         <RefBadge key={`${ref.type}:${ref.name}`} decoration={ref} theme={theme} onCheckoutRef={onCheckoutRef} />
       ))}
       <span className="commit-subject">{node.subject}</span>
-      <img className="commit-avatar" src={node.authorAvatarUrl} alt="" loading="lazy" title={node.author} />
-      <span className="commit-author">{node.author}</span>
+      {/* The row truncates the author to fit, and the avatar says nothing on its own — both carry
+          the full identity on hover so a "Dev 12" or an initials-only gravatar can be resolved
+          without opening the commit. */}
+      <img className="commit-avatar" src={node.authorAvatarUrl} alt="" loading="lazy" title={authorTitle} />
+      <span className="commit-author" title={authorTitle}>
+        {node.author}
+      </span>
       <span className="commit-date" title={node.date}>
         {formatDate(node.date)}
       </span>
