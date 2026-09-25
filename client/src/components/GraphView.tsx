@@ -95,6 +95,28 @@ export default function GraphView({
     };
   }, [nodes]);
 
+  // Resolved once per graph rather than per scroll frame: the visible-edge test below runs on
+  // every render (scrolling re-renders continuously), and doing two Map lookups per edge inside
+  // it meant ~40 000 lookups a frame on a 20 000-commit history before a single line was drawn.
+  const edgeSpans = useMemo(
+    () =>
+      edges.flatMap((edge) => {
+        const from = rowByHash.get(edge.from);
+        const to = rowByHash.get(edge.to);
+        if (!from || !to) return [];
+        return [
+          {
+            edge,
+            fromRow: from.row,
+            toRow: to.row,
+            minRow: Math.min(from.row, to.row),
+            maxRow: Math.max(from.row, to.row),
+          },
+        ];
+      }),
+    [edges, rowByHash],
+  );
+
   // Keep the selected row in view regardless of what selected it (click, arrow keys, or
   // jumping to a search match) — a single place responsible for "scroll it into view".
   useEffect(() => {
@@ -133,17 +155,12 @@ export default function GraphView({
     Math.ceil((scrollTop + viewportHeight) / ROW_HEIGHT) + OVERSCAN_ROWS,
   );
   const visibleNodes = nodes.slice(firstRow, lastRow + 1);
-  const visibleEdges = edges.filter((edge) => {
-    const from = rowByHash.get(edge.from);
-    const to = rowByHash.get(edge.to);
-    if (!from || !to) return false;
-    // Interval overlap, not "either endpoint is inside" — an edge spanning a wide row range
-    // (e.g. a branch merged back long after it forked) must still be drawn while scrolled to
-    // a point between its two endpoints, even though neither endpoint itself is on screen.
-    const minRow = Math.min(from.row, to.row);
-    const maxRow = Math.max(from.row, to.row);
-    return minRow <= lastRow && maxRow >= firstRow;
-  });
+  // Interval overlap, not "either endpoint is inside" — an edge spanning a wide row range (e.g. a
+  // branch merged back long after it forked) must still be drawn while scrolled to a point
+  // between its two endpoints, even though neither endpoint itself is on screen. The row lookups
+  // behind that test don't depend on scroll position, so they're resolved once per graph
+  // (`edgeSpans` above) and this per-frame pass is left comparing plain numbers.
+  const visibleEdges = edgeSpans.filter((span) => span.minRow <= lastRow && span.maxRow >= firstRow);
 
   const laneX = (lane: number) => PAD_X + lane * LANE_WIDTH;
   const rowY = (row: number) => ROW_HEIGHT / 2 + row * ROW_HEIGHT;
@@ -198,14 +215,11 @@ export default function GraphView({
           style={{ width: laneWidth }}
         >
           <svg width={graphWidth} height={totalHeight} className="graph-svg">
-            {visibleEdges.map((edge) => {
-              const from = rowByHash.get(edge.from);
-              const to = rowByHash.get(edge.to);
-              if (!from || !to) return null;
+            {visibleEdges.map(({ edge, fromRow, toRow }) => {
               const x1 = laneX(edge.fromLane);
-              const y1 = rowY(from.row);
+              const y1 = rowY(fromRow);
               const x2 = laneX(edge.toLane);
-              const y2 = rowY(to.row);
+              const y2 = rowY(toRow);
               const color = groupColor(edge.colorGroup);
               const strokeWidth = edge.colorGroup === currentBranchColorGroup ? 3 : 2;
               const key = `${edge.from}:${edge.to}`;

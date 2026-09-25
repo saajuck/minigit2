@@ -417,6 +417,96 @@ qu'un TODO silencieux.
   déjà jugée basse, juste pour qu'un futur audit ne le re-découvre pas comme
   un finding séparé).
 
+## Audit perf front — recherche sur gros historique (mené en v0.9.0)
+
+Audit ciblé, déclenché par un rapport terrain : « ça lag fort » sur un gros
+repo, en particulier avec la recherche. Contrairement au reste de ce document,
+**celui-ci a été exécuté** : les deux causes dominantes sont corrigées dans le
+même commit que cette section. Les mesures sont reproductibles.
+
+**Méthode** — dépôt synthétique de 20 000 commits / 121 refs (généré via
+`git fast-import`), servi par le serveur réel, piloté dans Chromium headless
+(1500×950). Métriques : `PerformanceObserver` sur `longtask` (temps de blocage
+du thread principal) et écarts entre frames pendant un scroll programmatique de
+40 frames. Chaque chiffre ci-dessous est une médiane ou une somme mesurée, pas
+une estimation.
+
+### Constat 1 — la minimap émettait un élément DOM par commit correspondant (CRITIQUE, corrigé)
+**Fichier** : `client/src/components/GraphMinimap.tsx`.
+
+La bande de minimap fait la hauteur du panneau (~800 px) mais recevait un
+`<div>` absolu **par commit correspondant à la recherche** : une requête d'une
+seule lettre matche 20 000 commits sur 20 000, donc 20 000 éléments empilés dans
+800 px — des milliers d'entre eux sur le même pixel. Ils étaient re-layoutés et
+repeints à **chaque frame de scroll** (le `scrollTop` de `GraphView` est une
+prop de la minimap, donc tout scroll la re-rend).
+
+Mesures avant :
+
+| Scénario | Avant |
+|---|---|
+| Scroll, sans recherche | 17 ms/frame |
+| Scroll, requête matchant 20 000 commits | **89 ms/frame** (p90 113) |
+| Idem, ticks masqués en CSS (`display:none`) | 29 ms/frame |
+| Blocage par frappe (requête large) | **279 ms** (pire tâche 195 ms) |
+| Frappe de 5 caractères d'affilée | **609 ms** de blocage cumulé |
+| Nœuds DOM avec requête large | 20 428 |
+
+Le test « masqué en CSS » isole la part layout/paint (~60 ms/frame) du reste
+(réconciliation React, ~12 ms/frame).
+
+**Correctif** : un tick par *pixel* de la bande, pas par commit — les positions
+sont dédupliquées par `Math.round(row * rowHeight * scale)`. Visuellement
+identique (les ticks font 2 px de haut), et le nombre d'éléments est borné par
+la hauteur du panneau au lieu de la taille du dépôt. Même traitement pour les
+ticks de tags, dont le `title` indique `+N more` quand plusieurs tags tombent
+sur le même pixel.
+
+### Constat 2 — filtrage des arêtes en O(arêtes) avec deux lookups Map par frame (MOYEN, corrigé)
+**Fichier** : `client/src/components/GraphView.tsx`.
+
+`visibleEdges` re-filtrait les 20 000 arêtes à chaque rendu, avec deux
+`rowByHash.get()` par arête pour retrouver les lignes des extrémités — soit
+~40 000 lookups de Map par frame de scroll, avant même de dessiner une ligne.
+
+**Correctif** : les lignes de chaque arête sont résolues une fois par graphe
+(`edgeSpans`, mémoïsé sur `[edges, rowByHash]`) ; la passe par frame ne compare
+plus que des nombres.
+
+### Résultats après correctifs
+
+| Scénario | Avant | Après |
+|---|---|---|
+| Scroll, sans recherche | 17 ms/frame | 17 ms/frame |
+| Scroll, requête matchant 20 000 commits | 89 ms/frame | **17 ms/frame** (p90 20) |
+| Blocage par frappe (requête large) | 279 ms | **0 ms** |
+| Frappe de 5 caractères | 609 ms | **0 ms** |
+| Ticks de minimap | 20 000 | 661 |
+| Nœuds DOM avec requête large | 20 428 | 1 159 |
+
+### Non-problèmes vérifiés (ne pas re-signaler sans nouvelle mesure)
+
+- **Le filtre de recherche lui-même** (`App.tsx`, `matchingNodes`) : parcourt
+  les 20 000 nœuds avec `toLowerCase()` par champ à chaque frappe débouncée, et
+  ne produit **aucune** tâche longue (requête sans résultat : 0 ms de blocage
+  mesuré). Inutile de l'optimiser.
+- **Rafraîchissement complet du graphe** (ce que fait l'auto-refresh) :
+  562 ms bout en bout, 64 ms de blocage. Voir P1.1bis pour le fond du sujet,
+  mais ce n'est pas ressenti comme un lag de frappe.
+- **`file:`** : seul opérateur qui sort sur le réseau. Le plus large pathspec
+  possible (`src/app`, 20 000 commits) met ~2,1 s à se stabiliser, dont ~0,6 s
+  de `git log --all -- <path>` côté serveur ; zéro blocage client.
+
+### Reste à traiter (non corrigé ici)
+
+- **Charge utile initiale** : 10,5 Mo de JSON (1,6 Mo gzip) pour 20 000
+  commits, ~1,1–1,7 s jusqu'à la première ligne affichée. Les URLs Gravatar
+  pèsent 1,6 Mo à elles seules (15 %) et sont dérivables du hash de l'e-mail
+  côté client. `authorEmail` (0,33 Mo) n'est utilisé que pour le filtre
+  `author:`.
+- **P1.1bis** (rafraîchissement incrémental) reste ouvert et reste la bonne
+  réponse de fond au coût du poll sur gros dépôt.
+
 ## Non-findings notés (pour éviter qu'un futur audit les re-signale)
 
 - Pas d'auto-updater Tauri, pas de build macOS packagé : **confirmé
