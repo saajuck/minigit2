@@ -193,7 +193,9 @@ export default function App() {
           if (current && current.signature === previous.signature) return;
         }
         const previousHashes = new Set((previous?.nodes ?? []).map((n) => n.hash));
-        let updated: GraphResponse | null = null;
+        // No initializer: both branches below assign it, so seeding it with null was dead — a
+        // finding of @eslint/js 10's no-useless-assignment, which is right.
+        let updated: GraphResponse | null;
         try {
           updated = await queryClient.fetchQuery({
             queryKey: ["graph", repoId],
