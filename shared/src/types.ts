@@ -29,6 +29,23 @@ export interface RefDecoration {
   isHead: boolean;
 }
 
+export interface TagInfo {
+  name: string;
+  /** The commit the tag resolves to — an annotated tag's peeled target, not the tag object's own
+   * id, so this can be matched against the graph's commit hashes directly. */
+  hash: string;
+  /** Tagger date for an annotated tag, commit date for a lightweight one (git's `creatordate`
+   * collapses the two). ISO 8601. */
+  date: string;
+  /** The annotation's subject line, or the target commit's subject for a lightweight tag. */
+  subject: string;
+  annotated: boolean;
+}
+
+export interface TagsResponse {
+  tags: TagInfo[];
+}
+
 export interface CommitNode {
   hash: string;
   parents: string[];

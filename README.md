@@ -74,6 +74,11 @@ replacement for `git` itself.
   force/discard).
 - **Branches**: local vs. remote-tracking branches listed separately, with
   the repo's default branch marked (resolved from `origin/HEAD`).
+- **Tags**: every tag listed newest first with its date and message (the
+  annotation's own, or the commit's for a lightweight tag); one click selects
+  the commit it points at and centers it in the graph. Tagged commits are
+  ringed in the lane strip, in the same color the minimap's tag ticks and the
+  ref badges use.
 - **Status**: bar showing current branch / detached HEAD / working tree
   dirty state, ahead/behind counts vs the tracked upstream, manual refresh
   button plus automatic refresh on a configurable interval (30s by default,

@@ -33,6 +33,14 @@ export const QUAL_DARK: LaneColor[] = [
   { stroke: "#d0919b", bg: "rgba(161,95,106,.18)", text: "#f0c7cd", strong: "#f26f83" },
 ];
 
+/** The one colour that says "tag", shared by the minimap's ticks, the ring the graph draws around
+ * a tagged commit and the ref badge's edge — they only read as the same thing if they *are* the
+ * same value. Lane 2 is the palette's amber, unused by the qualitative lanes' first two runs, so
+ * a tag mark stays distinguishable from the branch colour it sits on in the common case. */
+export function getTagColor(theme: Theme): string {
+  return getPalette(theme)[2]!.stroke;
+}
+
 export function getPalette(theme: Theme): LaneColor[] {
   return theme === "dark" ? QUAL_DARK : QUAL_LIGHT;
 }

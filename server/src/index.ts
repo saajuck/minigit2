@@ -16,6 +16,7 @@ import { reposRouter } from "./routes/repos";
 import { searchRouter } from "./routes/search";
 import { stashRouter } from "./routes/stash";
 import { statusRouter } from "./routes/status";
+import { tagsRouter } from "./routes/tags";
 import { watchRouter } from "./routes/watch";
 
 /** Deferred so a bundled/packaged build (no real source file on disk to resolve `import.meta.url`
@@ -66,6 +67,7 @@ app.use("/api/repos/:id/stash", stashRouter);
 app.use("/api/repos/:id/reflog", reflogRouter);
 app.use("/api/repos/:id/local-diff", localDiffRouter);
 app.use("/api/repos/:id/branches", branchesRouter);
+app.use("/api/repos/:id/tags", tagsRouter);
 app.use("/api/repos/:id/search", searchRouter);
 app.use("/api/repos/:id/watch", watchRouter);
 

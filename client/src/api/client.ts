@@ -14,6 +14,7 @@ import type {
   RepoSummary,
   StashListResponse,
   StatusResponse,
+  TagsResponse,
 } from "@minigit2/shared";
 import { showToast } from "../design-system/toast";
 
@@ -132,6 +133,8 @@ export const api = {
     request<LocalDiffResponse>(`/repos/${repoId}/local-diff`, { signal }),
   getLocalDiffPatch: (repoId: string, path: string, signal?: AbortSignal) =>
     request<FilePatchResponse>(`/repos/${repoId}/local-diff/file?path=${encodeURIComponent(path)}`, { signal }),
+  getTags: (repoId: string, signal?: AbortSignal) =>
+    request<TagsResponse>(`/repos/${repoId}/tags`, { signal }),
   getBranches: (repoId: string, signal?: AbortSignal) =>
     request<BranchesResponse>(`/repos/${repoId}/branches`, { signal }),
   searchCommitsByFile: (repoId: string, pathspec: string, signal?: AbortSignal) =>

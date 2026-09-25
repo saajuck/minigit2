@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { CommitNode, GraphEdge } from "@minigit2/shared";
-import { getPalette, type Theme } from "../design-system/palette";
+import { getPalette, getTagColor, type Theme } from "../design-system/palette";
 import CommitRow from "./CommitRow";
 import GraphMinimap from "./GraphMinimap";
 import ResizableDivider from "./ResizableDivider";
@@ -21,6 +21,10 @@ interface Props {
   compareHash: string | null;
   /** Non-null while a search is active: hashes matching the query. Rows outside this set are dimmed. */
   matchHashes: Set<string> | null;
+  /** Bumped by the app when something asked to *go to* the selected commit rather than merely
+   * select it (the Tags dialog). Each new value centers the selected row; the value itself
+   * carries no meaning beyond "this is a new request". */
+  revealSeq?: number;
   theme: Theme;
   /** Width of the lane area, in px — user-resizable via the divider, not derived from the graph's own lane count. */
   laneWidth: number;
@@ -36,6 +40,7 @@ export default function GraphView({
   selectedHash,
   compareHash,
   matchHashes,
+  revealSeq = 0,
   theme,
   laneWidth,
   onLaneResize,
@@ -117,6 +122,23 @@ export default function GraphView({
     [edges, rowByHash],
   );
 
+  // Centering, as opposed to the minimal "nudge it past the edge" scroll below: arrow-key
+  // stepping wants the nudge, but jumping to a tag's commit thousands of rows away wants the row
+  // in the middle of the pane, where it can be read in context. Keyed off the counter rather than
+  // the selection so only an explicit reveal centers; tracking the last handled value in a ref
+  // keeps the dependency list honest without re-centering on every unrelated selection change.
+  const lastRevealRef = useRef(0);
+  useEffect(() => {
+    if (revealSeq === lastRevealRef.current) return;
+    lastRevealRef.current = revealSeq;
+    const el = containerRef.current;
+    if (!el || !selectedHash) return;
+    const node = nodes.find((n) => n.hash === selectedHash);
+    if (!node) return;
+    const top = node.row * ROW_HEIGHT;
+    el.scrollTop = Math.max(0, top - (el.clientHeight - ROW_HEIGHT) / 2);
+  }, [revealSeq, selectedHash, nodes]);
+
   // Keep the selected row in view regardless of what selected it (click, arrow keys, or
   // jumping to a search match) — a single place responsible for "scroll it into view".
   useEffect(() => {
@@ -143,6 +165,7 @@ export default function GraphView({
   }
 
   const pal = getPalette(theme);
+  const tagColor = getTagColor(theme);
   const groupColor = (colorGroup: number) =>
     colorGroup === currentBranchColorGroup ? pal[colorGroup % pal.length]!.strong : pal[colorGroup % pal.length]!.stroke;
 
@@ -250,18 +273,33 @@ export default function GraphView({
               const compared = node.hash === compareHash;
               const dimmed = isDimmed(node.hash);
               const color = groupColor(node.colorGroup);
+              // A tagged commit gets an outer ring in the minimap's own tag colour, so a tick on
+              // the strip and the commit it points at read as the same mark — the ref badge in
+              // the row carries the tag's *name*, this carries "there is one, here" at the scale
+              // you scan the lanes at.
+              const tagged = node.refs.some((r) => r.type === "tag");
               return (
-                <circle
-                  key={node.hash}
-                  cx={laneX(node.lane)}
-                  cy={rowY(node.row)}
-                  r={selected || compared ? 7 : 5.5}
-                  fill={isHead ? color : "var(--color-bg)"}
-                  stroke={color}
-                  strokeWidth={selected || compared ? 3 : 2}
-                  strokeDasharray={compared ? "3 2" : undefined}
-                  opacity={dimmed ? 0.25 : 1}
-                />
+                <g key={node.hash} opacity={dimmed ? 0.25 : 1}>
+                  {tagged && (
+                    <circle
+                      cx={laneX(node.lane)}
+                      cy={rowY(node.row)}
+                      r={selected || compared ? 10 : 9}
+                      fill="none"
+                      stroke={tagColor}
+                      strokeWidth={2}
+                    />
+                  )}
+                  <circle
+                    cx={laneX(node.lane)}
+                    cy={rowY(node.row)}
+                    r={selected || compared ? 7 : 5.5}
+                    fill={isHead ? color : "var(--color-bg)"}
+                    stroke={color}
+                    strokeWidth={selected || compared ? 3 : 2}
+                    strokeDasharray={compared ? "3 2" : undefined}
+                  />
+                </g>
               );
             })}
           </svg>

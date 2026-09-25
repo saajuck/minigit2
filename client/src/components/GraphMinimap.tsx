@@ -1,6 +1,6 @@
 import { useMemo, useRef, type MouseEvent as ReactMouseEvent } from "react";
 import type { CommitNode } from "@minigit2/shared";
-import { getPalette, type Theme } from "../design-system/palette";
+import { getPalette, getTagColor, type Theme } from "../design-system/palette";
 
 interface Props {
   nodes: CommitNode[];
@@ -72,7 +72,7 @@ export default function GraphMinimap({
   if (totalHeight <= 0 || viewportHeight <= 0) return <div className="graph-minimap" ref={elRef} />;
 
   const pal = getPalette(theme);
-  const tagColor = pal[2]!.stroke;
+  const tagColor = getTagColor(theme);
   const matchColor = pal[3]!.stroke;
 
   function scrollToClientY(clientY: number) {

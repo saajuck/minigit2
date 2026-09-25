@@ -24,6 +24,17 @@ function makeTestRepo(): string {
   return dir;
 }
 
+/** Same throwaway repo with an annotated tag on the first commit. Kept separate from
+ * makeTestRepo rather than folded into it: the extra ref badge takes real width in a commit row,
+ * which squeezes the subject column to nothing at the default viewport — the other tests assert
+ * on that subject text, so they'd start failing for a reason that has nothing to do with them. */
+function makeTaggedRepo(): string {
+  const dir = makeTestRepo();
+  const git = (...args: string[]) => execFileSync("git", args, { cwd: dir });
+  git("tag", "-a", "v1.0.0", "-m", "first release", "main");
+  return dir;
+}
+
 test("add a repo, view a commit's diff, and check out a branch", async ({ page }) => {
   const repoDir = makeTestRepo();
   try {
@@ -79,6 +90,38 @@ test("switching commits quickly does not stack diff sections", async ({ page }) 
     await page.waitForTimeout(1500);
 
     await expect(page.getByRole("button", { name: /file(s)? changed/i })).toHaveCount(1);
+  } finally {
+    rmSync(repoDir, { recursive: true, force: true });
+  }
+});
+
+test("the Tags dialog lists tags and selects the commit one points at", async ({ page }) => {
+  const repoDir = makeTaggedRepo();
+  try {
+    await page.goto("/");
+
+    await page.getByRole("button", { name: "Add repository" }).click();
+    await page.getByPlaceholder("/home/alice/code/my-project").fill(repoDir);
+    await page.getByRole("button", { name: "Add repository" }).last().click();
+
+    // Assertions go through the rows and their ref badges rather than the subject text: with a
+    // tag badge in play the subject column can be squeezed to zero width at this viewport.
+    const rows = page.locator(".commit-row");
+    await expect(rows).toHaveCount(2, { timeout: 10_000 });
+
+    // Select the *other* commit first, so "went to the tag's commit" can't pass by accident.
+    await rows.filter({ hasText: "add feature file" }).click();
+    await expect(page.locator(".commit-row.selected")).toContainText("add feature file");
+
+    await page.getByRole("button", { name: "Tags", exact: true }).click();
+    const dialog = page.locator(".dialog");
+    await expect(dialog).toContainText("v1.0.0");
+    // The annotated tag's own message, not the commit's — the two differ here on purpose.
+    await expect(dialog).toContainText("first release");
+
+    await dialog.getByRole("button", { name: /Go to v1.0.0/ }).click();
+    await expect(dialog).toBeHidden();
+    await expect(page.locator(".commit-row.selected")).toContainText("v1.0.0");
   } finally {
     rmSync(repoDir, { recursive: true, force: true });
   }

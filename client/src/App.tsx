@@ -17,6 +17,7 @@ import ResizableDivider from "./components/ResizableDivider";
 import SettingsDialog from "./components/SettingsDialog";
 import StashDialog from "./components/StashDialog";
 import StatusChips from "./components/StatusChips";
+import TagsDialog from "./components/TagsDialog";
 import {
   ArchiveIcon,
   FileEditIcon,
@@ -78,6 +79,12 @@ export default function App() {
   const [stashOpen, setStashOpen] = useState(false);
   const [reflogOpen, setReflogOpen] = useState(false);
   const [branchesOpen, setBranchesOpen] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
+  // Bumped by an explicit "take me to this commit" (currently the Tags dialog): selecting a
+  // hash alone only nudges the row into view from whichever edge it's past, which is right for
+  // arrow keys but useless when the target is thousands of rows away. GraphView centers on a
+  // bump instead.
+  const [revealSeq, setRevealSeq] = useState(0);
   const [focusedRefs, setFocusedRefs] = useState<{ hash: string; name: string }[]>([]);
   const [diffPaneWidth, setDiffPaneWidth] = useState<number>(() => {
     const stored = Number(localStorage.getItem(DIFF_WIDTH_KEY));
@@ -232,6 +239,8 @@ export default function App() {
     setCompareHash(hash);
   }
 
+  const graphHashes = useMemo(() => new Set((graph?.nodes ?? []).map((n) => n.hash)), [graph]);
+
   function openLocalDiff() {
     setSelectedHash(null);
     setCompareHash(null);
@@ -248,6 +257,7 @@ export default function App() {
     setSearchCursor(-1);
     setShowLocalDiff(false);
     setFocusedRefs([]);
+    setRevealSeq(0);
   }, [activeRepoId]);
 
   // Refs (not state) so the interval/SSE effects below only reopen when the repo itself changes,
@@ -359,6 +369,17 @@ export default function App() {
       roots.map((r) => r.hash),
     );
   }, [graph, focusedRefs]);
+
+  function revealCommit(hash: string) {
+    // A branch focus can be hiding the target — "go to this commit" is explicit enough to
+    // override it rather than scroll to a row that isn't rendered.
+    if (focusHashes && !focusHashes.has(hash)) {
+      setFocusedRefs([]);
+      showToast("Cleared the branch focus to show that commit.");
+    }
+    selectCommit(hash);
+    setRevealSeq((n) => n + 1);
+  }
 
   // The graph pane renders only these — a hard filter, not a dim — so row indices need
   // renumbering to stay contiguous for GraphView's scroll/virtualization math, and edges that
@@ -573,6 +594,15 @@ export default function App() {
                   <button
                     type="button"
                     className="btn btn-secondary"
+                    onClick={() => setTagsOpen(true)}
+                    title="List tags and jump to the commit they point at"
+                  >
+                    <TagIcon />
+                    Tags
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
                     onClick={() => setStashOpen(true)}
                     title="View stashed changes"
                   >
@@ -667,6 +697,7 @@ export default function App() {
                       selectedHash={selectedHash}
                       compareHash={compareHash}
                       matchHashes={matchHashes}
+                      revealSeq={revealSeq}
                       theme={theme}
                       laneWidth={graphLaneWidth}
                       onLaneResize={handleGraphLaneResize}
@@ -718,6 +749,17 @@ export default function App() {
         <StashDialog repoId={activeRepoId} theme={theme} onClose={() => setStashOpen(false)} />
       )}
       {reflogOpen && activeRepoId && <ReflogDialog repoId={activeRepoId} onClose={() => setReflogOpen(false)} />}
+      {tagsOpen && activeRepoId && (
+        <TagsDialog
+          repoId={activeRepoId}
+          graphHashes={graphHashes}
+          onClose={() => setTagsOpen(false)}
+          onGoToCommit={(hash) => {
+            revealCommit(hash);
+            setTagsOpen(false);
+          }}
+        />
+      )}
       {branchesOpen && activeRepoId && (
         <BranchesDialog
           repoId={activeRepoId}

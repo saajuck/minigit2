@@ -163,8 +163,14 @@ export default function DiffPanel({
           </CollapsibleSection>
         )}
         <div className="diff-submeta">
-          <img className="commit-avatar" src={commit.authorAvatarUrl} alt="" loading="lazy" />
-          {commit.author} · {formatDate(commit.date)} · parents:{" "}
+          <img
+            className="commit-avatar"
+            src={commit.authorAvatarUrl}
+            alt=""
+            loading="lazy"
+            title={`${commit.author} <${commit.authorEmail}>`}
+          />
+          <span title={`${commit.author} <${commit.authorEmail}>`}>{commit.author}</span> · {formatDate(commit.date)} · parents:{" "}
           {commit.parents.length ? commit.parents.map((p) => p.slice(0, 7)).join(", ") : "none (root commit)"}
         </div>
       </div>

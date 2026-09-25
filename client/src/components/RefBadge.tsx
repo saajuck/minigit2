@@ -1,6 +1,6 @@
 import type { MouseEvent } from "react";
 import type { RefDecoration } from "@minigit2/shared";
-import { getPalette, type Theme } from "../design-system/palette";
+import { getPalette, getTagColor, type Theme } from "../design-system/palette";
 
 interface Props {
   decoration: RefDecoration;
@@ -23,6 +23,9 @@ export default function RefBadge({ decoration, theme, onCheckoutRef }: Props) {
           background: decoration.type === "branch" ? pal[0]!.bg : pal[2]!.bg,
           color: decoration.type === "branch" ? pal[0]!.text : pal[2]!.text,
           fontWeight: decoration.type === "branch" && decoration.isHead ? 600 : undefined,
+          // Ties the badge to the ring the graph draws and the tick on the minimap — all three
+          // are the same colour value, from getTagColor.
+          borderLeft: decoration.type === "tag" ? `3px solid ${getTagColor(theme)}` : undefined,
         };
 
   return (
