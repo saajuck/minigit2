@@ -315,8 +315,8 @@ export default function GraphView({
                 selected={node.hash === selectedHash}
                 compared={node.hash === compareHash}
                 dimmed={isDimmed(node.hash)}
-                onSelect={() => onSelect(node.hash)}
-                onCompareClick={() => onCompareClick(node.hash)}
+                onSelect={onSelect}
+                onCompareClick={onCompareClick}
                 onCheckoutRef={onCheckoutRef}
               />
             </div>
