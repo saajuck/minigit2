@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit -p tsconfig.json && vite build",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "node ../node_modules/typescript-7/bin/tsc --noEmit -p tsconfig.json && vite build",
+    "typecheck": "node ../node_modules/typescript-7/bin/tsc --noEmit -p tsconfig.json",
     "preview": "vite preview",
     "test": "vitest run"
   },
