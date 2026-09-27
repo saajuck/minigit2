@@ -125,6 +125,21 @@ npm install
 npm run dev
 ```
 
+### Two TypeScripts, on purpose
+
+`npm run typecheck` and the build run **TypeScript 7** (the native compiler), via the
+`typescript-7` alias in the root `package.json` — the scripts call
+`node ../node_modules/typescript-7/bin/tsc` by path rather than a bare `tsc`, since both
+packages provide that binary and which one wins the `node_modules/.bin` link is not something to
+depend on.
+
+The plain `typescript` dependency stays on 5.x because two things still need the old JavaScript
+compiler API, which TS 7 no longer ships (its `.` export is just a version stub):
+typescript-eslint, which refuses to load against TS 7 at all, and editors resolving the
+workspace TypeScript version. So: TS 7 checks the code, TS 5 serves the linter and your IDE.
+Drop the alias and move `typescript` to 7 once typescript-eslint supports it
+([typescript-eslint#10940](https://github.com/typescript-eslint/typescript-eslint/issues/10940)).
+
 ## Build / run
 
 ```bash
