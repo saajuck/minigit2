@@ -113,10 +113,11 @@ Known issues, tech debt, and perf/test-coverage gaps not yet addressed:
 
 ## Install
 
-On Ubuntu or Windows, download the AppImage or installer from the
+On Ubuntu or Windows, download a package from the
 [Releases page](https://github.com/saajuck/minigit2/releases) — it opens as a normal desktop
-window, no browser tab required. macOS and other Linux distros run from source. See
-[docs/DEPLOY.md](docs/DEPLOY.md) for details.
+window, no browser tab required. On Debian/Ubuntu prefer the `.deb` (it uses your system's own
+WebKitGTK); the AppImage is there when you want something portable with nothing to install.
+macOS runs from source. See [docs/DEPLOY.md](docs/DEPLOY.md) for details.
 
 ## Development
 

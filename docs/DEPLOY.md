@@ -1,6 +1,22 @@
 # Deploying minigit2
 
-## Ubuntu (recommended): download the AppImage
+## Ubuntu/Debian (recommended): install the `.deb`
+
+1. Go to the [Releases page](https://github.com/saajuck/minigit2/releases) and download the
+   latest `minigit2_*_amd64.deb`.
+2. Install and launch it from your application menu like any other package:
+   ```bash
+   sudo apt install ./minigit2_*_amd64.deb
+   ```
+
+This is the more robust of the two Linux artifacts, and the reason is worth knowing: the `.deb`
+links against the WebKitGTK and GLib *your* distribution ships, while the AppImage has to carry
+its own copies — built on whatever Ubuntu release the CI runner happens to use. Those copies
+can end up older than the host they run on, and some of those mismatches are fatal (see
+"If the AppImage aborts on start-up" below). An `.rpm` is published alongside it for
+RPM-based distributions.
+
+## Ubuntu: download the AppImage (portable, nothing to install)
 
 1. Go to the [Releases page](https://github.com/saajuck/minigit2/releases) and download
    the latest `minigit2_*.AppImage`.
@@ -20,6 +36,21 @@
 Closing the window stops the background server automatically. Launching a second AppImage
 window while one is already running reuses the existing server instead of starting a
 duplicate — you'll just get a second window pointed at the same backend.
+
+### If the AppImage aborts on start-up
+
+On a host substantially newer than the release runner's Ubuntu, the bundled WebKitGTK can fail
+against the host's EGL/Mesa stack and abort before any window appears:
+
+```
+Could not create surfaceless EGL display: EGL_BAD_ALLOC. Aborting...
+```
+
+No environment variable avoids this. `WEBKIT_DISABLE_DMABUF_RENDERER=1` and
+`WEBKIT_DISABLE_COMPOSITING_MODE=1` were both measured not to help, together and separately —
+the abort site is reached regardless of either flag. Install the `.deb` above instead: it uses
+the host's own WebKitGTK, so the mismatch can't arise. Tracked in
+[docs/AUDIT.md](AUDIT.md).
 
 ## Windows: download the installer
 
