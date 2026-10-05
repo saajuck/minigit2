@@ -1,0 +1,26 @@
+# Temporary probe: does a GitHub-hosted ubuntu-26.04 runner image exist, and what WebKitGTK/GLib
+# would an AppImage built there bundle? Deleted once the question is answered — it exists only to
+# replace a guess with a fact.
+name: Probe runner images
+
+on:
+  push:
+    branches: ["claude/**"]
+
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, ubuntu-26.04, ubuntu-24.04]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Report the image and the libraries an AppImage would bundle
+        run: |
+          echo "=== requested label: ${{ matrix.runner }} ==="
+          . /etc/os-release && echo "image: $PRETTY_NAME"
+          dpkg-query -W -f='glib runtime: ${Version}\n' libglib2.0-0t64 2>/dev/null \
+            || dpkg-query -W -f='glib runtime: ${Version}\n' libglib2.0-0 2>/dev/null \
+            || echo "glib runtime: not installed"
+          apt-cache policy libwebkit2gtk-4.1-dev 2>/dev/null | sed -n '1,3p'
+          apt-cache policy libglib2.0-dev 2>/dev/null | sed -n '2,3p'
