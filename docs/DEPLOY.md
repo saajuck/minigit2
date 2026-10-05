@@ -9,17 +9,28 @@
    sudo apt install ./minigit2_*_amd64.deb
    ```
 
-This is the more robust of the two Linux artifacts, and the reason is worth knowing: the `.deb`
-links against the WebKitGTK and GLib *your* distribution ships, while the AppImage has to carry
-its own copies — built on whatever Ubuntu release the CI runner happens to use. Those copies
-can end up older than the host they run on, and some of those mismatches are fatal (see
-"If the AppImage aborts on start-up" below). An `.rpm` is published alongside it for
-RPM-based distributions.
+This is the artifact to reach for first, and the reason is worth knowing: the `.deb` links
+against the WebKitGTK and GLib *your* distribution ships, so it cannot drift from your system.
+Its declared dependencies (`libwebkit2gtk-4.1-0`, `libgtk-3-0`) carry no version bound, so the
+single build serves newer releases too. An `.rpm` is published alongside it for RPM-based
+distributions.
 
 ## Ubuntu: download the AppImage (portable, nothing to install)
 
-1. Go to the [Releases page](https://github.com/saajuck/minigit2/releases) and download
-   the latest `minigit2_*.AppImage`.
+Two AppImages are published, and **they are not interchangeable** — each carries its own
+WebKitGTK and GLib, which only work on a host no older than the Ubuntu they were built on:
+
+| File | Build base | Use it on |
+|---|---|---|
+| `minigit2_*_amd64.AppImage` | Ubuntu 24.04 | Ubuntu 24.04 and similar-vintage distributions |
+| `minigit2_*_amd64-ubuntu26.AppImage` | Ubuntu 26.04 | Ubuntu 26.04 and newer |
+
+Picking the wrong one is not subtle. The 24.04 build on an Ubuntu 26 desktop aborts before any
+window appears (see "If the AppImage aborts on start-up" below); the 26.04 build on an older
+host won't start at all, its GLib and glibc being newer than what's installed.
+
+1. Go to the [Releases page](https://github.com/saajuck/minigit2/releases) and download the one
+   matching your distribution from the table above.
 2. Make it executable and run it:
    ```bash
    chmod +x minigit2_*.AppImage
@@ -39,18 +50,18 @@ duplicate — you'll just get a second window pointed at the same backend.
 
 ### If the AppImage aborts on start-up
 
-On a host substantially newer than the release runner's Ubuntu, the bundled WebKitGTK can fail
-against the host's EGL/Mesa stack and abort before any window appears:
-
 ```
 Could not create surfaceless EGL display: EGL_BAD_ALLOC. Aborting...
 ```
 
-No environment variable avoids this. `WEBKIT_DISABLE_DMABUF_RENDERER=1` and
-`WEBKIT_DISABLE_COMPOSITING_MODE=1` were both measured not to help, together and separately —
-the abort site is reached regardless of either flag. Install the `.deb` above instead: it uses
-the host's own WebKitGTK, so the mismatch can't arise. Tracked in
-[docs/AUDIT.md](AUDIT.md).
+This is an AppImage built for an older base than the host it's running on: the WebKitGTK it
+carries is talking to a much newer host EGL/Mesa stack. Download the AppImage matching your
+distribution from the table above, or install the `.deb`.
+
+Don't bother with the WebKit escape hatches — `WEBKIT_DISABLE_DMABUF_RENDERER=1` and
+`WEBKIT_DISABLE_COMPOSITING_MODE=1` were measured not to help, together and separately, on the
+host that produced this error. Only the build base matters. See [docs/AUDIT.md](AUDIT.md) for
+what was ruled out along the way.
 
 ## Windows: download the installer
 

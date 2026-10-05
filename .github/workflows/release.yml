@@ -36,9 +36,38 @@ jobs:
             echo "tag=v$version" >> "$GITHUB_OUTPUT"
           fi
 
-  build-appimage:
+  # One Linux build per base, because an AppImage carries its own WebKitGTK and GLib and those
+  # only work on a host no older than the base they were built on. The 24.04 AppImage aborts on
+  # Ubuntu 26 before opening a window ("Could not create surfaceless EGL display: EGL_BAD_ALLOC"),
+  # and no environment variable avoids it — the bundled WebKitGTK is simply talking to a much
+  # newer host EGL. Building a second one on 26.04 fixes that, verified on a real 26.04 desktop.
+  # The two are not interchangeable in either direction, hence the suffix in the filename.
+  #
+  # `ubuntu-latest` is deliberately not used here: the day GitHub points it at a newer image, the
+  # AppImage meant for older hosts would silently stop covering them, which is exactly the bug
+  # this matrix exists to prevent.
+  build-linux:
     needs: determine-tag
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The native packages come from the oldest supported base only: they link against the
+          # host's own libraries, so one build serves every newer distribution too (its declared
+          # dependencies carry no version bound), and two legs producing identically-named .deb
+          # files would collide on the release.
+          - base: ubuntu-24.04
+            suffix: ""
+            bundles: "appimage,deb,rpm"
+            release_files: |
+              src-tauri/target/release/bundle/appimage/*.AppImage
+              src-tauri/target/release/bundle/deb/*.deb
+              src-tauri/target/release/bundle/rpm/*.rpm
+          - base: ubuntu-26.04
+            suffix: "-ubuntu26"
+            bundles: "appimage"
+            release_files: src-tauri/target/release/bundle/appimage/*.AppImage
+    runs-on: ${{ matrix.base }}
     permissions:
       contents: write
     steps:
@@ -66,21 +95,26 @@ jobs:
       - name: Build server sidecar
         run: ./packaging/linux/build-sidecar.sh
 
-      - name: Build Tauri AppImage
-        run: npx tauri build
+      - name: Build Tauri bundles
+        run: npx tauri build --bundles ${{ matrix.bundles }}
 
-      # `bundle.targets` is "all", so this job already produces a .deb and a .rpm next to the
-      # AppImage; they just weren't published. They're worth shipping: a native package links
-      # against the *host's* WebKitGTK and GLib instead of the ones we bundle, which is the only
-      # arrangement that can't break when the host is newer than the release runner.
+      # Without this the two bases produce the same filename and the second to finish would
+      # overwrite the first on the release.
+      - name: Label the AppImage with the base it was built on
+        if: matrix.suffix != ''
+        run: |
+          cd src-tauri/target/release/bundle/appimage
+          for f in *.AppImage; do mv "$f" "${f%.AppImage}${{ matrix.suffix }}.AppImage"; done
+          ls -la
+
+      # The .deb and .rpm were produced all along and discarded before they were published here.
+      # They're worth shipping on their own merit: a native package links against the *host's*
+      # WebKitGTK and GLib rather than carrying its own, so it can't drift from the host at all.
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: minigit2-linux
-          path: |
-            src-tauri/target/release/bundle/appimage/*.AppImage
-            src-tauri/target/release/bundle/deb/*.deb
-            src-tauri/target/release/bundle/rpm/*.rpm
+          name: minigit2-linux-${{ matrix.base }}
+          path: ${{ matrix.release_files }}
 
       - name: Attach Linux artifacts to release
         if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
@@ -90,10 +124,7 @@ jobs:
           # release when it doesn't already exist — the runner's own token can do this even when
           # a contributor's own git credentials aren't allowed to push tags directly.
           tag_name: ${{ needs.determine-tag.outputs.tag }}
-          files: |
-            src-tauri/target/release/bundle/appimage/*.AppImage
-            src-tauri/target/release/bundle/deb/*.deb
-            src-tauri/target/release/bundle/rpm/*.rpm
+          files: ${{ matrix.release_files }}
 
   build-windows:
     needs: determine-tag

@@ -116,8 +116,9 @@ Known issues, tech debt, and perf/test-coverage gaps not yet addressed:
 On Ubuntu or Windows, download a package from the
 [Releases page](https://github.com/saajuck/minigit2/releases) — it opens as a normal desktop
 window, no browser tab required. On Debian/Ubuntu prefer the `.deb` (it uses your system's own
-WebKitGTK); the AppImage is there when you want something portable with nothing to install.
-macOS runs from source. See [docs/DEPLOY.md](docs/DEPLOY.md) for details.
+WebKitGTK); the AppImage is there when you want something portable with nothing to install —
+pick the one matching your distribution, `-ubuntu26` for Ubuntu 26.04 and newer. macOS runs
+from source. See [docs/DEPLOY.md](docs/DEPLOY.md) for details.
 
 ## Development
 

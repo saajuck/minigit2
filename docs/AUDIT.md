@@ -672,8 +672,27 @@ la WebKitGTK et à la glib **de l'hôte**, seul montage qui ne peut pas dériver
 quand l'hôte est plus récent que le runner. `docs/DEPLOY.md` recommande
 désormais le `.deb` sur Debian/Ubuntu.
 
-Reste ouvert : rendre l'AppImage elle-même utilisable sur hôte récent. Deux
-options non tranchées — construire l'AppImage sur une base plus récente
-(`ubuntu-26.04` si l'image runner existe, au prix de la compatibilité avec les
-hôtes plus anciens), ou publier deux AppImages. À ne pas trancher sans mesurer
-d'abord quel appel EGL échoue exactement sur l'hôte Ubuntu 26.
+**Résolu** (même cycle) : c'est la base de build, pas le code. L'image runner
+`ubuntu-26.04` existe (Ubuntu 26.04.1 LTS, glib 2.88,
+`libwebkit2gtk-4.1-dev` 2.52.6-0ubuntu0.26.04.1 — vérifié par un job de sonde
+jetable, pas supposé). Une AppImage construite sur cette base **démarre sur
+l'hôte Ubuntu 26** qui faisait planter celle de 24.04 — confirmé par
+l'utilisateur sur sa machine, le seul endroit où ce test a un sens.
+
+`release.yml` produit donc deux AppImages via une matrice (`ubuntu-24.04` et
+`ubuntu-26.04`, suffixe `-ubuntu26`), et le job est épinglé sur `ubuntu-24.04`
+au lieu de `ubuntu-latest` : le jour où GitHub déplace `latest`, l'AppImage
+destinée aux hôtes anciens cesserait silencieusement de les couvrir. Les paquets
+natifs ne sortent que de la base la plus ancienne — ils se lient aux libs de
+l'hôte et leurs dépendances déclarées n'ont aucune borne de version, donc un
+seul build suffit, et deux legs produisant le même nom de `.deb` entreraient en
+collision sur la release.
+
+Ce qui **n'est pas** établi : laquelle des différences entre les deux bundles
+était coupable. La glib passe de 2.80 à 2.88 et 20 libs embarquées disparaissent
+(159 → 139) ; la variable n'a pas été isolée. On sait que faire correspondre la
+base corrige le symptôme, pas pourquoi précisément. Si quelqu'un veut le savoir,
+la piste la plus probable est une lib embarquée chargée dans le processus via le
+RPATH et qui gêne l'init EGL de Mesa côté hôte (les `libwayland-*` sont les
+candidates les plus plausibles) — à bisecter en retirant des libs du bundle une
+par une, ce qui n'a pas été fait faute d'hôte Ubuntu 26 accessible.
