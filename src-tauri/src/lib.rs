@@ -34,8 +34,50 @@ fn parse_ready_port(line: &str) -> Option<u16> {
     line.rsplit(':').next()?.parse().ok()
 }
 
+/// The AppImage carries its own GLib/GIO, built on the distro the release runner uses. The GTK
+/// hook linuxdeploy generates only ever exports `GIO_EXTRA_MODULES`, which *adds* to the module
+/// search path, so GIO still scans the host's `gio/modules` and tries to load the host's modules
+/// into our older GLib. On a host newer than the build machine those modules need symbols our
+/// GLib doesn't export (`g_variant_builder_init_static`, on Ubuntu 26) and every launch prints a
+/// wall of `undefined symbol` / `Failed to load module` noise. `GIO_MODULE_DIR` *replaces* the
+/// scanned directory, so pointing it at the bundle leaves only the modules we actually shipped.
+///
+/// Confined to AppImage runs (`APPDIR` is set) and never overrides a value set by the user, so
+/// `GIO_MODULE_DIR=/usr/lib/x86_64-linux-gnu/gio/modules` restores the old behavior. The bundle
+/// only ships `libgiognutls.so`, so this does cost our process the host's dconf GSettings
+/// backend, GVfs and proxy resolution — none of which this app uses: it opens no native file
+/// dialog and only ever talks to 127.0.0.1, and the theme lookup that matters happens in the
+/// hook's own `gsettings` call, in a host process we don't touch (verified under strace).
+#[cfg(target_os = "linux")]
+fn confine_gio_modules_to_bundle() {
+    if std::env::var_os("GIO_MODULE_DIR").is_some() {
+        return;
+    }
+    let Ok(appdir) = std::env::var("APPDIR") else {
+        return;
+    };
+
+    // The bundled module directory is architecture-dependent, and linuxdeploy's hook has already
+    // worked it out — reuse its value rather than hardcoding a target triple here. It is a
+    // `:`-separated list in principle, so take the first entry that really lives in the bundle.
+    let bundled = std::env::var("GIO_EXTRA_MODULES").ok().and_then(|list| {
+        list.split(':')
+            .find(|path| !path.is_empty() && path.starts_with(&appdir))
+            .map(str::to_owned)
+    });
+
+    // Nothing recognizable to point at (the hook changed shape): leave the environment alone and
+    // put up with the noise rather than guessing a path that would silence working modules.
+    if let Some(bundled) = bundled {
+        std::env::set_var("GIO_MODULE_DIR", bundled);
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(target_os = "linux")]
+    confine_gio_modules_to_bundle();
+
     let app = tauri::Builder::default()
         // Best-effort: relies on a session D-Bus, which desktop Linux always has but a minimal
         // or sandboxed environment might not — in that case a relaunch just opens a second,

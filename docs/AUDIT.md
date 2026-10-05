@@ -588,3 +588,92 @@ commit apparaît, la bannière « 1 new commit loaded » fonctionne toujours.
   smoke-test côté Linux serait cohérent mais bas risque.
 - La migration React Query est **complète** : aucun pattern `fetch`+`useEffect`
   résiduel trouvé en dehors de `api/client.ts`.
+
+## AppImage sur hôte plus récent que le runner de release (investigué en v0.10.1)
+
+Rapport utilisateur sous **Ubuntu 26** : l'AppImage 0.10.1 publiée affiche des
+erreurs gvfs/glib puis meurt sur `Could not create surfaceless EGL display:
+EGL_BAD_ALLOC. Aborting...` (SIGABRT, core dumped), sans jamais ouvrir de
+fenêtre. Deux défauts distincts, pas un seul.
+
+### Défaut 1 — modules GIO de l'hôte chargés dans notre glib (corrigé)
+
+Faits mesurés sur l'artefact publié `minigit2_0.10.1_amd64.AppImage` :
+
+- la glib embarquée est la 2.80 (`libgio-2.0.so.0.8000.0`, celle d'Ubuntu
+  24.04) et n'exporte pas `g_variant_builder_init_static`, symbole réclamé par
+  le module gvfs d'Ubuntu 26 (`nm -D`) ;
+- le hook généré par linuxdeploy n'exporte que `GIO_EXTRA_MODULES`, qui
+  *ajoute* au chemin de recherche — GIO continuait donc à scanner
+  `/usr/lib/x86_64-linux-gnu/gio/modules` de l'hôte (**14 `openat` observés en
+  strace**) ;
+- `AppRun` ne source **que** `apprun-hooks/linuxdeploy-plugin-gtk.sh` (chemin
+  explicite, pas un glob) : ajouter un hook supplémentaire serait sans effet,
+  d'où un correctif dans le code Rust plutôt que dans le packaging.
+
+Correctif : `confine_gio_modules_to_bundle()` dans `src-tauri/src/lib.rs` pose
+`GIO_MODULE_DIR` (qui *remplace* le répertoire scanné) sur la valeur calculée
+par le hook, uniquement si `APPDIR` est défini et si l'utilisateur n'a rien
+posé lui-même — qui veut l'ancien comportement lance donc avec
+`GIO_MODULE_DIR=/usr/lib/x86_64-linux-gnu/gio/modules`.
+
+Vérifié en strace sur un AppImage reconstruit avec le correctif : les trois
+processus qui utilisent la glib **embarquée** passent de 14 ouvertures du
+répertoire de l'hôte à **0**. Il reste 3 ouvertures, par un processus qui
+charge la glib **de l'hôte** et lit `gschemas.compiled` : c'est le
+`gsettings get org.gnome.desktop.interface gtk-theme` de la ligne 3 du hook,
+légitime et non concerné.
+
+Compromis à connaître : le bundle ne contient qu'un seul module GIO
+(`libgiognutls.so`), donc confiner le répertoire prive *notre processus* du
+backend GSettings `dconf`, de GVfs et de la résolution de proxy de l'hôte.
+Mesuré sans conséquence ici : la détection de thème se fait dans le helper
+`gsettings` de l'hôte (ci-dessus), l'app n'ouvre aucun sélecteur de fichiers
+natif (pas de `tauri-plugin-dialog` dans `Cargo.toml`) et ne parle qu'à
+`127.0.0.1`. Non mesurable dans ce conteneur : le comportement exact de GTK
+face à XSettings sur un bureau réel — le hook forçant `GDK_BACKEND=x11`, les
+réglages GTK viennent de XSettings et non de GSettings, mais ce point repose
+sur un raisonnement, pas sur une mesure.
+
+Ces messages étaient bruyants mais non fatals : l'app continuait au-delà.
+
+### Défaut 2 — WebKitGTK embarquée contre l'EGL de l'hôte (non corrigé)
+
+Le crash lui-même. `Could not create surfaceless EGL display` est une chaîne de
+`libwebkit2gtk-4.1.so.0` **embarquée**, pas du code minigit2. Aucun
+EGL/Mesa/gbm/libdrm n'est bundlé (159 libs vérifiées) : WebKit appelle l'EGL de
+l'hôte. L'incompatibilité est donc structurelle — binaire WebKitGTK compilé
+contre la pile 24.04, exécuté contre le Mesa d'Ubuntu 26.
+
+Pistes testées et **réfutées**, à ne pas re-proposer sans nouvelle mesure :
+
+- `WEBKIT_DISABLE_DMABUF_RENDERER=1` **et** `WEBKIT_DISABLE_COMPOSITING_MODE=1`,
+  ensemble et séparément : l'abort survient à l'identique (testé par
+  l'utilisateur sur l'hôte réel). Le désassemblage montre pourtant que le
+  garde-fou `WEBKIT_DISABLE_DMABUF_RENDERER` (`fe4322`, comparaison de valeur
+  via `g_strcmp0` contre `"0"`) débouche bien sur
+  `EGL_MESA_platform_surfaceless` — mais le site d'abort (`332a43d`) est
+  atteignable par un autre chemin. Confirmé localement en cassant
+  volontairement EGL (`__EGL_VENDOR_LIBRARY_FILENAMES` vers un vendor
+  inexistant) : abort dans les deux cas, drapeau ou pas.
+- Shadowing de `libstdc++` par le bundle, qui aurait cassé le driver Mesa de
+  l'hôte : **réfuté**, `libstdc++`/`libgcc_s` ne sont pas embarquées et
+  `AppRun` ne pose aucun `LD_LIBRARY_PATH`.
+
+Non reproductible dans le conteneur de dev (Ubuntu 24.04) : l'AppImage y
+survit. Une sonde ctypes sur l'EGL de l'hôte montre pourquoi — **aucun nœud
+`/dev/dri`** ici, donc Mesa logiciel, et
+`eglGetPlatformDisplay(EGL_PLATFORM_SURFACELESS_MESA)` + `eglInitialize`
+réussissent. Le cas qui échoue est un hôte avec vraie GPU et Mesa récent.
+
+Atténuation livrée : publication du `.deb` et du `.rpm` (déjà produits par
+`bundle.targets: "all"`, simplement jamais uploadés). Un paquet natif se lie à
+la WebKitGTK et à la glib **de l'hôte**, seul montage qui ne peut pas dériver
+quand l'hôte est plus récent que le runner. `docs/DEPLOY.md` recommande
+désormais le `.deb` sur Debian/Ubuntu.
+
+Reste ouvert : rendre l'AppImage elle-même utilisable sur hôte récent. Deux
+options non tranchées — construire l'AppImage sur une base plus récente
+(`ubuntu-26.04` si l'image runner existe, au prix de la compatibilité avec les
+hôtes plus anciens), ou publier deux AppImages. À ne pas trancher sans mesurer
+d'abord quel appel EGL échoue exactement sur l'hôte Ubuntu 26.
