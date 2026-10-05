@@ -27,7 +27,7 @@
     "concurrently": "^10.0.5",
     "esbuild": "^0.28.2",
     "eslint": "^10.9.1",
-    "eslint-config-prettier": "^9.1.2",
+    "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.4",
     "prettier": "^3.9.6",
