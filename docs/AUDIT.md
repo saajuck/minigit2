@@ -699,7 +699,7 @@ par une, ce qui n'a pas été fait faute d'hôte Ubuntu 26 accessible.
 
 ## Voir aussi
 
-- [`AUDIT-FORGE.md`](AUDIT-FORGE.md) — étude de faisabilité (2026-10-08) sur le
-  croisement des PR/MR GitHub et GitLab avec le graphe de commits : ce que les
-  deux API exposent, et pourquoi l'obstacle est l'ancrage des PR fusionnées dans
-  le dépôt local, pas l'accès aux données.
+- [`AUDIT-FORGE.md`](AUDIT-FORGE.md) — étude de faisabilité (2026-10-08) :
+  croiser les PR/MR GitHub et GitLab, dépôts publics et privés, avec le graphe
+  de commits. Conclut que c'est possible dans les quatre cas et détaille les
+  contraintes côté utilisateur. Ne propose aucune implémentation.
