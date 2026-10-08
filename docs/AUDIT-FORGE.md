@@ -137,13 +137,25 @@ credential. Combiné au fait que le type de forge ne se déduit pas du domaine
 (section 7), la détection automatique d'une instance interne est un problème à
 part entière : il faut demander, ou sonder après authentification.
 
-**[MESURÉ]** Un projet inexistant renvoie `404 {"message":"404 Project Not
-Found"}`. **[DOC]** GitLab renvoie également 404 — et non 403 — pour un projet
-privé auquel l'utilisateur n'a pas accès, afin de ne pas divulguer son
-existence. **Non vérifié ici** (aucun projet privé accessible dans cette
-session). Si c'est exact, l'app ne peut pas distinguer « ce projet n'existe
-pas » de « ton token n'y a pas droit », et le message d'erreur doit couvrir les
-deux cas au lieu d'en affirmer un.
+**[MESURÉ]** « Privé » et « inexistant » sont **indistinguables**, et sur les
+deux chemins d'accès. Vérifié le 2026-10-08 contre un projet GitLab privé réel
+(`saajuck/test-private`, créé pour ce test) comparé à un chemin inexistant :
+
+| Appel | Projet privé existant | Projet inexistant |
+|---|---|---|
+| `GET /api/v4/projects/{path}` | `404 {"message":"404 Project Not Found"}` | `404 {"message":"404 Project Not Found"}` |
+| `GET /api/v4/projects/{path}/merge_requests` | `404` | `404` |
+| `git ls-remote https://…` (sans credential) | `fatal: could not read Username for 'https://gitlab.com': terminal prompts disabled` | message identique |
+
+Les réponses sont identiques à l'octet près. L'app ne pourra donc **jamais**
+dire à l'utilisateur « ce projet est privé, ajoute un token » plutôt que « cette
+URL est fausse » : elle doit proposer les deux hypothèses. C'est délibéré de la
+part de GitLab — répondre 403 divulguerait l'existence du projet.
+
+Corollaire **[MESURÉ]** : le serveur lance déjà `git` avec
+`GIT_TERMINAL_PROMPT=0` (`server/src/git/fetch.ts`), donc sur un dépôt privé
+sans credential en cache l'échec est immédiat et porte exactement ce message —
+illisible pour un utilisateur, à traduire.
 
 **[MESURÉ]** Deux chemins de confiance TLS distincts, qui est le piège le plus
 spécifique aux instances internes : le serveur lance `git` en sous-processus
@@ -406,10 +418,15 @@ Liste explicite, pour qu'aucune de ces lignes ne soit reprise comme acquise :
 9. **Contraintes des groupes GitLab sous SAML SSO sur les PAT** — énoncées de
    mémoire, avec une confiance moyenne, et susceptibles de rendre la
    fonctionnalité inaccessible dans une organisation donnée (section 3.3).
-10. **Réponse d'un projet privé sans droit d'accès** — supposée 404 comme un
-    projet inexistant, non vérifiée (section 3.2).
-11. **Validation TLS vers une CA interne** depuis le sidecar Node *et* depuis
+10. **Validation TLS vers une CA interne** depuis le sidecar Node *et* depuis
     `git`, qui n'utilisent pas le même magasin (section 3.2).
+11. **Tout ce qui demande un token GitLab** — cette session n'en détient aucun
+    (son proxy ne porte que des credentials GitHub). L'annexe A liste les
+    commandes qui lèveraient ces points.
+
+*Résolu depuis la première version de ce document :* la réponse d'un projet
+privé sans droit d'accès, désormais mesurée contre un projet privé réel
+(section 3.2).
 
 ## 9. Questions à trancher avant tout code
 
@@ -439,3 +456,68 @@ Ce sont des décisions produit, pas techniques, et elles ne m'appartiennent pas 
    C'est le cas probable en entreprise sous SSO restrictif, et il est
    exploitable : les refs de MR donnent la topologie sans aucun token
    (section 3.3).
+
+
+## Annexe A — Commandes pour lever les points non vérifiés
+
+À exécuter sur l'instance concernée. **Coller les sorties, jamais le token** :
+un token collé dans une conversation est un token à révoquer.
+
+### A.1 OAuth sans secret est-il jouable ? (lève le point 8)
+
+```bash
+curl -s https://<instance>/.well-known/openid-configuration \
+  | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d["token_endpoint_auth_methods_supported"], d["grant_types_supported"], d["code_challenge_methods_supported"])'
+```
+
+Si `none` figure dans la première liste, un client public peut terminer un
+échange PKCE et l'option OAuth tient. Sinon elle tombe, et il ne reste que le
+token saisi à la main. **[MESURÉ]** sur gitlab.com : `none` est **absent**. Une
+instance auto-hébergée peut différer.
+
+### A.2 L'instance est-elle identifiable sans token ? (affine la section 3.2)
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" https://<instance>/api/v4/version
+```
+
+**[MESURÉ]** sur gitlab.com : `401`. Un `200` sur une instance interne
+simplifierait la détection de forge.
+
+### A.3 Ce qu'un token `read_api` débloque réellement (lève les points 3 et 4)
+
+```bash
+read -rs GL_TOKEN                      # saisie masquée, pas d'historique shell
+PROJ="saajuck%2Ftest-private"
+for ep in "projects/$PROJ" "projects/$PROJ/merge_requests" "projects/$PROJ/labels"; do
+  printf "%s  %s\n" "$(curl -s -o /dev/null -w '%{http_code}' -H "PRIVATE-TOKEN: $GL_TOKEN" "https://gitlab.com/api/v4/$ep")" "$ep"
+done
+curl -s -D - -o /dev/null -H "PRIVATE-TOKEN: $GL_TOKEN" "https://gitlab.com/api/v4/projects/$PROJ" | grep -i '^ratelimit'
+unset GL_TOKEN
+```
+
+Les trois codes disent si un scope lecture seule suffit pour les labels — qui
+répondent **401 sans token même sur un projet public** (section 3.1). Les
+en-têtes `ratelimit-*` donnent la limite réelle d'un token utilisateur, là où
+ce document ne cite qu'une valeur documentée.
+
+### A.4 Les PAT sont-ils autorisés par la politique du groupe ? (lève le point 9)
+
+Pas une commande : essayer de créer un token à portée `read_api` dans les
+réglages utilisateur. Si la création est refusée ou impose une expiration
+courte, c'est la politique du groupe SAML qui parle, et c'est l'information qui
+décide si la fonctionnalité est accessible dans cette organisation.
+
+### A.5 Coût du fetch des refs de MR sur un vrai dépôt interne (lève le point 6)
+
+```bash
+cd <un-clone-du-depot-interne>
+du -sk .git
+git fetch origin "+refs/merge-requests/*/head:refs/remotes/origin/mr/*" && git gc --prune=now
+du -sk .git
+git for-each-ref --format='%(refname)' 'refs/remotes/origin/mr/*' | wc -l
+```
+
+**[MESURÉ]** sur `saajuck/minigit2` (120 PR, 3 Mo) : +656 KiB, 1 s. Ni la durée
+ni la taille ne se déduisent de cette mesure pour un dépôt à plusieurs milliers
+de MR.
