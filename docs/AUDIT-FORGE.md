@@ -5,6 +5,14 @@ privés. **Question traitée** : est-ce possible, et à quelles contraintes pour
 l'utilisateur. Ce document ne propose aucune implémentation et ne tranche aucun
 choix produit.
 
+**Périmètre précisé par le demandeur (2026-10-08)** : les quatre combinaisons
+sont à couvrir, et dans leur variante la plus large — GitHub en dépôts
+personnels **et** en organisation sous SAML SSO, GitLab sur gitlab.com **et** en
+instance auto-hébergée, et des dépôts cibles qui **mélangent** squash-merge et
+commits de merge. Aucune des simplifications possibles n'est donc applicable :
+les contraintes des sections 4.3 (SSO), 4.4 (auto-hébergé) et 3 (rattachement)
+s'appliquent toutes.
+
 ## Comment lire ce document
 
 Les constats n'ont pas tous la même valeur, donc chacun porte sa provenance :
@@ -122,6 +130,13 @@ systématiquement. Un dépôt en commits de merge a ses têtes de PR comme ancê
 de la branche par défaut, donc présentes sans aucune récupération
 supplémentaire. **La contrainte dépend de la façon de merger, pas de la forge.**
 
+**Conséquence du périmètre précisé** : les dépôts cibles mélangeant les deux
+stratégies, le taux d'ancres manquantes **varie d'un dépôt à l'autre et ne se
+déduit pas** — il se mesure (annexe). La contrainte doit donc être considérée
+comme présente : il existera des dépôts où une partie des PR fusionnées n'est
+rattachable qu'à son commit de squash sans récupération supplémentaire, et
+d'autres où la question ne se pose pas.
+
 ## 4. Contraintes pour l'utilisateur
 
 ### 4.1 Dépôt public
@@ -162,9 +177,35 @@ possible — on perd labels, reviewers et commentaires, pas la topologie.
 
 ### 4.3 SSO
 
-**[DOC, confiance élevée]** Le SSO n'authentifie jamais un appel d'API. SAML et
-OIDC authentifient l'humain dans un navigateur ; l'API veut un token porteur.
-« Via SSO » se ramène donc toujours à l'un de deux chemins :
+### « Un SSO ne suffit pas ? »
+
+Si, pour l'utilisateur — non, pour le transport. La distinction est la clé de
+toute cette section, donc elle mérite d'être posée nettement.
+
+**[DOC, confiance élevée]** Le SSO authentifie une **session de navigateur** :
+l'IdP émet une assertion vers la forge, la forge pose un cookie de session
+valable pour son interface web. Une app locale qui appelle `/api/v4` ou
+`api.github.com` n'est pas ce navigateur : elle n'a pas ce cookie, et les deux
+forges ne contractualisent pas l'accès API par cookie de session. Le SSO ne
+*transporte* donc rien jusqu'à l'API.
+
+Mais le SSO reste parfaitement suffisant comme **mécanisme de connexion**, à
+condition qu'il aboutisse à un token. C'est exactement ce que fait OAuth :
+l'utilisateur clique, se connecte avec son identité d'entreprise dans son
+navigateur habituel, et la forge émet un token à l'app. De son point de vue, il
+« s'est connecté en SSO » et n'a manipulé aucun secret. La contrainte n'est donc
+pas « le SSO ne marche pas », c'est « le SSO doit se terminer par un token ».
+
+**[HYPOTHÈSE, et c'est une mauvaise piste à écarter explicitement]** Cette app
+*est* un webview (Tauri) : elle pourrait techniquement afficher la page de
+connexion, faire le SSO et conserver le cookie. Trois raisons de ne pas y
+compter : l'app détiendrait la session **à tous les droits** de l'utilisateur au
+lieu d'un token en lecture seule — strictement moins sûr que le problème qu'on
+cherchait à éviter ; l'accès API par cookie n'est pas une interface contractuelle
+et peut casser à n'importe quelle mise à jour de la forge ; et les protections
+CSRF et same-origin la rendent fragile. Non vérifié, et non souhaitable.
+
+Reste donc, concrètement, l'un de ces deux chemins :
 
 1. **Un token créé à la main** après connexion SSO. Le SSO sert à obtenir le
    token, puis n'intervient plus. Fonctionne partout, mais l'utilisateur
@@ -185,14 +226,23 @@ public : elle n'a nulle part où garder un secret. Rien ici ne confirme qu'un
 échange PKCE sans secret aboutit. Si un secret est exigé, l'embarquer dans un
 binaire téléchargeable n'en fait pas un secret, et il ne reste que l'option 1.
 
-**[DOC, confiance moyenne — risque de blocage le plus probable]** Les groupes
-sous SAML SSO imposé ajoutent des contraintes sur les tokens : session SAML
-active, politiques d'expiration, et possibilité pour l'administrateur
-d'**interdire la création de PAT**. Je ne connais pas ces règles avec assez de
-certitude pour les énoncer précisément, et elles diffèrent entre gitlab.com et
-l'auto-hébergé. **Si une organisation interdit les PAT et qu'OAuth sans secret
-ne fonctionne pas, il n'existe aucun chemin pour l'app.** C'est la seule
-situation identifiée où la réponse à « est-ce possible » serait **non**.
+**[DOC, confiance moyenne]** Les groupes sous SAML SSO imposé ajoutent des
+contraintes sur les tokens : session SAML active, politiques d'expiration, et
+possibilité pour l'administrateur d'**interdire la création de PAT**. Je ne
+connais pas ces règles avec assez de certitude pour les énoncer précisément, et
+elles diffèrent entre gitlab.com et l'auto-hébergé.
+
+**Correction d'une première version de ce document**, qui affirmait qu'une
+interdiction des PAT combinée à la réserve PKCE ne laisserait « aucun chemin ».
+C'était trop fort : au moins deux autres porteurs de credential existent.
+**[DOC, non vérifié]** les tokens de projet ou de groupe, qui ne sont pas des
+tokens personnels et peuvent relever d'une politique différente ; et une
+application OAuth créée par l'utilisateur lui-même, dont le `client_id` et le
+secret vivraient sur sa machine — exposition équivalente à un PAT, donc ni
+meilleure ni pire, mais un chemin distinct qu'une interdiction de PAT ne couvre
+pas forcément. **[AVIS]** « Impossible » n'est donc défendable que si *tous* ces
+chemins sont fermés, ce qui n'est pas établi et dépend d'une politique
+d'organisation, pas de la technique.
 
 **[DOC]** GitHub a la même famille de contrainte : avec SAML SSO sur une
 organisation, un token doit être **explicitement autorisé** pour cette
@@ -293,22 +343,22 @@ Liste explicite, pour qu'aucune de ces lignes ne soit reprise comme acquise :
 
 Je n'ai pas les éléments pour les trancher moi-même :
 
-1. **GitHub : dépôts personnels, ou une organisation avec SAML SSO imposé ?**
-   Décide si un token peut simplement fonctionner ou doit en plus être autorisé
-   pour l'organisation (section 4.3).
-2. **GitLab : gitlab.com uniquement, ou aussi une instance auto-hébergée ?**
-   Les points 401, la CA interne et l'enregistrement de l'application OAuth ne
-   concernent que le second cas (section 4.4).
-3. **La politique de ton organisation autorise-t-elle la création d'un token à
-   portée lecture ?** C'est la seule question dont une réponse négative, combinée
-   à la réserve PKCE, rendrait la fonctionnalité impossible (section 4.3).
-4. **Les dépôts visés fusionnent-ils en squash ou en commits de merge ?**
-   Décide si le problème de rattachement de la section 3 existe réellement chez
-   toi, ou s'il est un artefact de la façon de merger de ce dépôt-ci.
-5. **Usage personnel, ou plusieurs utilisateurs ?** Avec plusieurs utilisateurs,
-   chacun doit fournir son propre token : la contrainte n'est plus technique mais
-   d'adoption.
-6. **La fonctionnalité doit-elle marcher sans aucune configuration ?** Si oui,
+**Répondu le 2026-10-08** : les quatre combinaisons sont au périmètre, GitHub
+sous SAML inclus, GitLab auto-hébergé inclus, stratégies de merge mélangées.
+Ces réponses sont intégrées ci-dessus et ne sont plus ouvertes.
+
+**Encore ouvert :**
+
+1. **La politique de l'organisation autorise-t-elle la création d'un token à
+   portée lecture ?** Réponse en attente. C'est la question la plus
+   conditionnante : si les PAT sont interdits, la faisabilité du cas privé
+   repose entièrement sur des chemins non vérifiés (PKCE sans secret, token de
+   projet ou de groupe, application OAuth créée par l'utilisateur — section 4.3).
+2. **Usage personnel, ou plusieurs utilisateurs ?** Avec plusieurs utilisateurs,
+   chacun doit fournir son propre credential : la contrainte n'est plus
+   technique mais d'adoption, et elle n'a pas la même réponse selon qu'on équipe
+   une personne ou une équipe.
+3. **La fonctionnalité doit-elle marcher sans aucune configuration ?** Si oui,
    le cas « dépôt privé » est hors d'atteinte, par construction et non par
    limitation d'implémentation.
 
@@ -339,6 +389,17 @@ unset GL_TOKEN
 **Lève le point 7** — les PAT sont-ils autorisés ? Pas une commande : essayer
 d'en créer un à portée `read_api` dans les réglages utilisateur. Un refus ou une
 expiration imposée, c'est la politique du groupe SAML qui parle.
+
+**Mesure le taux d'ancres manquantes sur un dépôt donné** (nécessaire puisque
+les stratégies de merge sont mélangées, section 3) :
+
+```bash
+cd <un-clone-du-depot>
+gh api "repos/<owner>/<repo>/pulls?state=closed&per_page=100" \
+  | python3 -c 'import sys,json; [print(p["head"]["sha"]) for p in json.load(sys.stdin) if p["merged_at"]]' \
+  | while read -r sha; do git cat-file -e "$sha^{commit}" 2>/dev/null && echo present || echo absent; done \
+  | sort | uniq -c
+```
 
 **Lève le point 10** — coût réel sur un dépôt interne :
 
