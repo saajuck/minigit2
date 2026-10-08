@@ -696,3 +696,10 @@ la piste la plus probable est une lib embarquée chargée dans le processus via 
 RPATH et qui gêne l'init EGL de Mesa côté hôte (les `libwayland-*` sont les
 candidates les plus plausibles) — à bisecter en retirant des libs du bundle une
 par une, ce qui n'a pas été fait faute d'hôte Ubuntu 26 accessible.
+
+## Voir aussi
+
+- [`AUDIT-FORGE.md`](AUDIT-FORGE.md) — étude de faisabilité (2026-10-08) sur le
+  croisement des PR/MR GitHub et GitLab avec le graphe de commits : ce que les
+  deux API exposent, et pourquoi l'obstacle est l'ancrage des PR fusionnées dans
+  le dépôt local, pas l'accès aux données.
