@@ -128,6 +128,103 @@ accessible.
 URL-encodé fonctionne comme identifiant, donc une URL de repo se traduit
 directement, sans résolution d'id préalable.
 
+### 3.2 Instance privée ou auto-hébergée
+
+**[MESURÉ]** Sans token, sur gitlab.com le 2026-10-08 : `/api/v4/version`,
+`/api/v4/metadata` et `/api/v4/user` renvoient tous **401**. On ne peut donc pas
+sonder la version ni confirmer qu'on parle bien à un GitLab avant d'avoir un
+credential. Combiné au fait que le type de forge ne se déduit pas du domaine
+(section 7), la détection automatique d'une instance interne est un problème à
+part entière : il faut demander, ou sonder après authentification.
+
+**[MESURÉ]** Un projet inexistant renvoie `404 {"message":"404 Project Not
+Found"}`. **[DOC]** GitLab renvoie également 404 — et non 403 — pour un projet
+privé auquel l'utilisateur n'a pas accès, afin de ne pas divulguer son
+existence. **Non vérifié ici** (aucun projet privé accessible dans cette
+session). Si c'est exact, l'app ne peut pas distinguer « ce projet n'existe
+pas » de « ton token n'y a pas droit », et le message d'erreur doit couvrir les
+deux cas au lieu d'en affirmer un.
+
+**[MESURÉ]** Deux chemins de confiance TLS distincts, qui est le piège le plus
+spécifique aux instances internes : le serveur lance `git` en sous-processus
+(`server/src/git/exec.ts`) et tourne lui-même comme binaire Node SEA
+(`packaging/linux/build-sidecar.sh`). `git` valide les certificats via OpenSSL
+(`http.sslCAInfo`, magasin système), Node via son propre magasin compilé
+(`NODE_EXTRA_CA_CERTS`). **[HYPOTHÈSE]** Sur une instance à CA interne, un dépôt
+qui `git fetch` parfaitement peut donc produire un appel API qui échoue en
+vérification TLS, et le symptôme n'orientera pas vers la bonne cause. Même
+dédoublement pour les proxys d'entreprise : `git` honore `http.proxy`, Node
+honore `HTTPS_PROXY`.
+
+### 3.3 SSO : ce que ça change, et ce que ça ne change pas
+
+**[DOC, confiance élevée]** Le point central : **aucune API de forge n'accepte
+une session SSO de navigateur.** SAML ou OIDC authentifient l'humain dans le
+navigateur ; l'API veut un token porteur. « Accéder via SSO » se traduit donc
+toujours par l'un de ces deux chemins, jamais par la session elle-même :
+
+1. **Un token créé à la main** après s'être connecté via SSO (PAT, token de
+   projet ou de groupe). Le SSO sert à obtenir le token, puis n'intervient plus.
+2. **OAuth** : l'app ouvre le navigateur, le navigateur fait la danse SSO avec
+   l'IdP, l'app reçoit un token. C'est le seul chemin où l'utilisateur ne
+   manipule pas de secret à la main, et il fonctionne avec n'importe quel IdP
+   puisque l'app ne voit jamais l'IdP.
+
+**[MESURÉ]** `https://gitlab.com/.well-known/openid-configuration` confirme que
+les deux variantes utilisables par une app de bureau existent :
+
+| | Valeur |
+|---|---|
+| `grant_types_supported` | `authorization_code`, `client_credentials`, **`device_code`**, `refresh_token` |
+| `code_challenge_methods_supported` | `plain`, **`S256`** (PKCE) |
+| `token_endpoint` | `https://gitlab.com/oauth/token` |
+| Scopes utiles | **`read_api`**, **`read_repository`**, `read_user` (sur 26) |
+
+Le grant `device_code` est l'option la plus simple pour une app de bureau : pas
+de redirection loopback à gérer, l'utilisateur colle un code dans son
+navigateur, et le SSO se fait là où il se fait normalement.
+
+**[MESURÉ — et c'est une réserve, pas un détail]**
+`token_endpoint_auth_methods_supported` vaut `client_secret_basic` et
+`client_secret_post`. **`none` n'y figure pas.** Un client public (une app
+distribuée, donc sans secret conservable) a besoin de `none`. Rien ici ne
+confirme qu'un échange PKCE sans secret aboutit sur GitLab. **À vérifier sur une
+instance réelle avant de retenir l'option OAuth** : si un secret client est
+exigé, l'embarquer dans un binaire téléchargeable n'en fait pas un secret, et
+l'option tombe — il ne resterait que le token collé à la main.
+
+**[DOC, non vérifié]** Sur une instance auto-hébergée, une application OAuth
+doit exister côté instance. Un administrateur peut en déclarer une pour toute
+l'instance ; **[DOC, confiance moyenne]** un utilisateur peut aussi en créer une
+dans ses propres réglages, ce qui fournit un `client_id` sans dépendre de
+l'admin. Non vérifié faute d'instance accessible.
+
+**[DOC, confiance moyenne — et c'est le risque de blocage le plus probable]**
+GitLab.com impose des contraintes supplémentaires sur les tokens quand un groupe
+applique SAML SSO : nécessité d'une session SAML active, politiques
+d'expiration, et possibilité pour l'administrateur d'**interdire purement et
+simplement la création de PAT**. Je ne connais pas ces règles avec assez de
+certitude pour les énoncer précisément, et elles diffèrent entre GitLab.com et
+l'auto-hébergé. **C'est à vérifier auprès de l'instance concernée avant toute
+promesse** : si l'organisation interdit les PAT et qu'OAuth sans secret ne
+fonctionne pas, il n'existe aucun chemin pour l'app.
+
+**[DOC]** Pour comparaison, GitHub a la même famille de problème : avec SAML SSO
+sur une organisation, un token doit être **explicitement autorisé** pour cette
+organisation, sinon les ressources de l'organisation répondent comme si elles
+n'existaient pas. Un token valide ne suffit pas.
+
+**[MESURÉ + AVIS]** Une observation de conception qui réduit le périmètre du
+problème : **l'accès git et l'accès API ont des chemins de credentials
+séparés.** Le serveur lance déjà `git fetch --all --prune` avec
+`GIT_TERMINAL_PROMPT=0` (`server/src/git/fetch.ts`), donc il s'appuie sur le
+credential helper ou la clé SSH **déjà configurés par l'utilisateur**. Le fetch
+de `refs/merge-requests/*` (section 4.3) hériterait de ce même mécanisme sans
+que l'app détienne quoi que ce soit. Un token ne serait nécessaire que pour
+l'API. Autrement dit : si le SSO bloque l'API, l'ancrage des MR fusionnées via
+les refs reste possible — on perdrait les labels, reviewers et commentaires,
+pas la topologie.
+
 ## 4. Le problème central : rattacher une PR au graphe
 
 C'est le constat le plus important de cet audit.
@@ -303,6 +400,16 @@ Liste explicite, pour qu'aucune de ces lignes ne soit reprise comme acquise :
 6. **Coût du fetch de `refs/pull/*` sur un gros repo** — mesuré seulement sur
    ce repo (120 PR, 3 Mo).
 7. **Bitbucket, Gitea, Forgejo** — hors périmètre demandé, non examinés.
+8. **PKCE sans secret client sur GitLab** — la découverte OIDC n'annonce pas
+   `none` comme méthode d'authentification du token endpoint. Conditionne
+   entièrement l'option OAuth pour une app distribuée (section 3.3).
+9. **Contraintes des groupes GitLab sous SAML SSO sur les PAT** — énoncées de
+   mémoire, avec une confiance moyenne, et susceptibles de rendre la
+   fonctionnalité inaccessible dans une organisation donnée (section 3.3).
+10. **Réponse d'un projet privé sans droit d'accès** — supposée 404 comme un
+    projet inexistant, non vérifiée (section 3.2).
+11. **Validation TLS vers une CA interne** depuis le sidecar Node *et* depuis
+    `git`, qui n'utilisent pas le même magasin (section 3.2).
 
 ## 9. Questions à trancher avant tout code
 
@@ -322,3 +429,13 @@ Ce sont des décisions produit, pas techniques, et elles ne m'appartiennent pas 
 5. **Une forge d'abord, ou les deux ?** GitLab donne plus en moins de requêtes
    (compteurs dans la liste, `squash_commit_sha` distinct) mais exige un token
    pour les commentaires, même en public. GitHub est l'inverse.
+6. **Quel mode d'authentification cible-t-on ?** Un token collé à la main marche
+   partout mais demande à l'utilisateur de manipuler un secret ; OAuth est plus
+   propre mais dépend d'un point non vérifié (PKCE sans secret) et, en
+   auto-hébergé, d'une application déclarée sur l'instance. Choisir OAuth sans
+   avoir levé cette réserve, c'est risquer de construire le seul chemin qui ne
+   fonctionne pas.
+7. **Qu'affiche-t-on quand l'API est inaccessible mais le git accessible ?**
+   C'est le cas probable en entreprise sous SSO restrictif, et il est
+   exploitable : les refs de MR donnent la topologie sans aucun token
+   (section 3.3).
